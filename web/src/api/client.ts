@@ -125,6 +125,11 @@ export const api = {
 
   confirmReceipt: (id: string) =>
     request<ReceiptDto>(`/api/receipts/${id}/confirm`, { method: 'POST' }),
+
+  receiptMatches: (id: string) => request<TransactionDto[]>(`/api/receipts/${id}/matches`),
+
+  linkReceipt: (id: string, transactionId: string) =>
+    request<ReceiptDto>(`/api/receipts/${id}/link/${transactionId}`, { method: 'POST' }),
 }
 
 export async function fetchReceiptImage(imageUrl: string): Promise<Blob> {

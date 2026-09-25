@@ -462,6 +462,27 @@ button:disabled {
   padding: 8px 12px;
 }
 
+.match-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--button);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--button) 10%, transparent);
+}
+
+.match-card p {
+  margin: 0;
+}
+
+.match-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .receipt-image {
   width: 100%;
   max-height: 320px;

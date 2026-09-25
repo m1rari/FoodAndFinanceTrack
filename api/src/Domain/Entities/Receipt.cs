@@ -14,6 +14,7 @@ public class Receipt : Entity
     public string? AiRawResponse { get; set; }
     public ProcessingStatus Status { get; set; } = ProcessingStatus.Pending;
     public decimal? Confidence { get; set; }
+    public long? TelegramChatId { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<ReceiptItem> Items { get; set; } = new();
 }

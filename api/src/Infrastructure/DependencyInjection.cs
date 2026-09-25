@@ -7,6 +7,7 @@ using FinanceFoodTracker.Infrastructure.Analysis;
 using FinanceFoodTracker.Infrastructure.Persistence;
 using FinanceFoodTracker.Infrastructure.Security;
 using FinanceFoodTracker.Infrastructure.Storage;
+using FinanceFoodTracker.Infrastructure.Telegram;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,6 +58,14 @@ public static class DependencyInjection
 
         services.AddSingleton<IReceiptProcessingQueue, ReceiptProcessingQueue>();
         services.AddHostedService<ReceiptProcessingWorker>();
+
+        services.AddHttpClient<ITelegramBot, TelegramBotClient>((provider, client) =>
+        {
+            var options = provider.GetRequiredService<IOptions<TelegramOptions>>().Value;
+            client.BaseAddress = new Uri($"https://api.telegram.org/bot{options.BotToken}/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddHostedService<TelegramWebhookSetup>();
 
         return services;
     }

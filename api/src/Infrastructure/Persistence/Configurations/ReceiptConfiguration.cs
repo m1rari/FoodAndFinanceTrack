@@ -20,6 +20,7 @@ public sealed class ReceiptConfiguration : IEntityTypeConfiguration<Receipt>
         builder.Property(r => r.AiRawResponse).HasColumnName("ai_raw_response").HasColumnType("jsonb");
         builder.Property(r => r.Status).HasColumnName("status").HasConversion<int>().IsRequired();
         builder.Property(r => r.Confidence).HasColumnName("confidence").HasPrecision(5, 4);
+        builder.Property(r => r.TelegramChatId).HasColumnName("telegram_chat_id");
         builder.Property(r => r.CreatedAt).HasColumnName("created_at").IsRequired();
 
         builder.HasOne(r => r.User)

@@ -23,7 +23,9 @@ public sealed class TelegramInitDataMiddleware
     {
         var path = context.Request.Path;
 
-        if (!path.StartsWithSegments("/api") || path.StartsWithSegments("/api/auth"))
+        if (!path.StartsWithSegments("/api")
+            || path.StartsWithSegments("/api/auth")
+            || path.StartsWithSegments("/api/telegram"))
         {
             await _next(context);
             return;

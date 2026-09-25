@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.Common.Options;
@@ -14,17 +15,20 @@ public sealed class ReceiptProcessor : IReceiptProcessor
 {
     private readonly IApplicationDbContext _db;
     private readonly IReceiptAnalyzer _analyzer;
+    private readonly ITelegramBot _bot;
     private readonly AiOptions _aiOptions;
     private readonly ILogger<ReceiptProcessor> _logger;
 
     public ReceiptProcessor(
         IApplicationDbContext db,
         IReceiptAnalyzer analyzer,
+        ITelegramBot bot,
         IOptions<AiOptions> aiOptions,
         ILogger<ReceiptProcessor> logger)
     {
         _db = db;
         _analyzer = analyzer;
+        _bot = bot;
         _aiOptions = aiOptions.Value;
         _logger = logger;
     }
@@ -60,6 +64,58 @@ public sealed class ReceiptProcessor : IReceiptProcessor
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        if (receipt.TelegramChatId is long chatId)
+        {
+            await NotifyTelegramAsync(chatId, receipt, cancellationToken);
+        }
+    }
+
+    private async Task NotifyTelegramAsync(long chatId, Receipt receipt, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var count = await _db.ReceiptItems.CountAsync(i => i.ReceiptId == receipt.Id, cancellationToken);
+            var total = receipt.TotalAmount?.ToString("0.00", CultureInfo.InvariantCulture);
+
+            var text = receipt.Status switch
+            {
+                ProcessingStatus.Processed =>
+                    $"✅ Чек добавлен: {receipt.MerchantName ?? "покупка"} · {total} ({count} {PluralItems(count)}).\nОткройте приложение, чтобы проверить и провести покупку.",
+                ProcessingStatus.NeedsReview =>
+                    "⚠️ Чек распознан неуверенно. Проверьте позиции в приложении.",
+                ProcessingStatus.Failed =>
+                    "⚠️ Не удалось распознать чек. Добавьте операцию вручную.",
+                _ => null
+            };
+
+            if (text is not null)
+            {
+                await _bot.SendMessageAsync(chatId, text, cancellationToken);
+            }
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(exception, "Не удалось отправить уведомление в Telegram для чека {ReceiptId}", receipt.Id);
+        }
+    }
+
+    private static string PluralItems(int count)
+    {
+        var mod10 = count % 10;
+        var mod100 = count % 100;
+
+        if (mod10 == 1 && mod100 != 11)
+        {
+            return "товар";
+        }
+
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20))
+        {
+            return "товара";
+        }
+
+        return "товаров";
     }
 
     private void ApplyResult(Receipt receipt, ReceiptAnalysisResult result, IReadOnlyList<Category> categories)

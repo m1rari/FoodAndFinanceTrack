@@ -1,5 +1,6 @@
 using FinanceFoodTracker.Application.Common.Exceptions;
 using FinanceFoodTracker.Application.Common.Interfaces;
+using FinanceFoodTracker.Application.Transactions;
 using FinanceFoodTracker.Domain.Entities;
 using FinanceFoodTracker.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -23,7 +24,7 @@ public sealed class ReceiptService : IReceiptService
         _queue = queue;
     }
 
-    public async Task<ReceiptDto> CreateAsync(Guid userId, byte[] content, string fileName, CancellationToken cancellationToken = default)
+    public async Task<ReceiptDto> CreateAsync(Guid userId, byte[] content, string fileName, CancellationToken cancellationToken = default, long? telegramChatId = null)
     {
         if (content.Length == 0)
         {
@@ -39,7 +40,8 @@ public sealed class ReceiptService : IReceiptService
         {
             UserId = userId,
             ImagePath = imagePath,
-            Status = ProcessingStatus.Pending
+            Status = ProcessingStatus.Pending,
+            TelegramChatId = telegramChatId
         };
 
         _db.Receipts.Add(receipt);
@@ -211,6 +213,68 @@ public sealed class ReceiptService : IReceiptService
                 Comment = item.Name,
                 ReceiptId = receipt.Id
             });
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return await GetDtoAsync(userId, receipt.Id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<TransactionDto>> GetMatchesAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
+    {
+        var receipt = await GetReceiptAsync(userId, id, cancellationToken);
+
+        if (await _db.Transactions.AnyAsync(t => t.ReceiptId == receipt.Id, cancellationToken))
+        {
+            return Array.Empty<TransactionDto>();
+        }
+
+        var total = receipt.TotalAmount ?? receipt.Items.Sum(i => i.TotalPrice);
+
+        if (total <= 0)
+        {
+            return Array.Empty<TransactionDto>();
+        }
+
+        var anchor = receipt.PurchaseDate ?? receipt.CreatedAt;
+        var from = anchor.AddDays(-1);
+        var to = anchor.AddDays(1);
+        const decimal tolerance = 0.01m;
+
+        return await _db.Transactions
+            .Include(t => t.Category)
+            .Include(t => t.Receipt)
+            .Where(t => t.UserId == userId
+                && t.Type == TransactionType.Expense
+                && t.Source == TransactionSource.Manual
+                && t.ReceiptId == null
+                && t.OccurredAt >= from
+                && t.OccurredAt <= to
+                && t.Amount >= total - tolerance
+                && t.Amount <= total + tolerance)
+            .OrderByDescending(t => t.OccurredAt)
+            .Select(t => TransactionMapper.ToDto(t))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ReceiptDto> LinkAsync(Guid userId, Guid id, Guid transactionId, CancellationToken cancellationToken = default)
+    {
+        var receipt = await GetReceiptAsync(userId, id, cancellationToken);
+
+        if (await _db.Transactions.AnyAsync(t => t.ReceiptId == receipt.Id, cancellationToken))
+        {
+            throw new ValidationException("Чек уже проведён в операции.");
+        }
+
+        var transaction = await _db.Transactions
+            .FirstOrDefaultAsync(t => t.Id == transactionId && t.UserId == userId && t.ReceiptId == null, cancellationToken)
+            ?? throw new NotFoundException("Операция не найдена.");
+
+        transaction.ReceiptId = receipt.Id;
+
+        if (string.IsNullOrWhiteSpace(transaction.Comment) && !string.IsNullOrWhiteSpace(receipt.MerchantName))
+        {
+            transaction.Comment = receipt.MerchantName;
         }
 
         await _db.SaveChangesAsync(cancellationToken);

@@ -104,6 +104,7 @@ export default function App() {
 
         {overlayOpen && purchaseId !== null && (
           <PurchaseScreen
+            key={purchaseId}
             receiptId={purchaseId}
             onBack={closeOverlays}
             onChanged={() => setRefreshKey((value) => value + 1)}

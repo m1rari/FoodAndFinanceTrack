@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api, ApiError, fetchReceiptImage } from '../api/client'
-import type { CategoryDto, ReceiptDto, ReceiptItemDto } from '../api/types'
+import type { CategoryDto, ReceiptDto, ReceiptItemDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
 import { formatDate, formatMoney } from '../utils/format'
 
@@ -29,6 +29,8 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const [matches, setMatches] = useState<TransactionDto[]>([])
+  const [matchesDismissed, setMatchesDismissed] = useState(false)
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ReceiptItemDto | null>(null)
@@ -123,6 +125,46 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
       }
     }
   }, [receipt])
+
+  useEffect(() => {
+    if (!receipt || receipt.confirmed || receipt.status === 'Pending') {
+      return
+    }
+
+    let cancelled = false
+
+    api
+      .receiptMatches(receipt.id)
+      .then((data) => {
+        if (!cancelled) {
+          setMatches(data)
+        }
+      })
+      .catch(() => {
+        // сопоставление необязательно
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [receipt])
+
+  async function handleLink(transactionId: string) {
+    if (!receipt) {
+      return
+    }
+
+    setError(null)
+
+    try {
+      const linked = await api.linkReceipt(receipt.id, transactionId)
+      setReceipt(linked)
+      setMatches([])
+      onChanged()
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось прикрепить чек')
+    }
+  }
 
   function openEditor(item: ReceiptItemDto | null) {
     setEditingItem(item)
@@ -236,6 +278,35 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
             </div>
             <span className="amount expense">−{formatMoney(receipt.totalAmount ?? 0)}</span>
           </div>
+
+          {!receipt.confirmed && receipt.status !== 'Pending' && !matchesDismissed && matches.length > 0 && (
+            <div className="match-card">
+              <p className="small">Похоже, эта покупка уже добавлена вручную:</p>
+              {matches.map((match) => (
+                <div className="match-row" key={match.id}>
+                  <div>
+                    <strong>{formatMoney(match.amount, match.currency)}</strong>
+                    <div className="muted small">
+                      {formatDate(match.occurredAt)}
+                      {match.comment ? ` · ${match.comment}` : ''}
+                    </div>
+                  </div>
+                  <button className="primary small-button" onClick={() => handleLink(match.id)}>
+                    Прикрепить
+                  </button>
+                </div>
+              ))}
+              <button
+                className="ghost small-button"
+                onClick={() => {
+                  setMatches([])
+                  setMatchesDismissed(true)
+                }}
+              >
+                Это разные операции
+              </button>
+            </div>
+          )}
 
           <h2 className="section-title">Товары</h2>
 

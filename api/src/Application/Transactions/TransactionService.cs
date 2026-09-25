@@ -49,7 +49,7 @@ public sealed class TransactionService : ITransactionService
 
         return await query
             .OrderByDescending(t => t.OccurredAt)
-            .Select(t => ToDto(t))
+            .Select(t => TransactionMapper.ToDto(t))
             .ToListAsync(cancellationToken);
     }
 
@@ -166,22 +166,7 @@ public sealed class TransactionService : ITransactionService
             .Include(t => t.Category)
             .Include(t => t.Receipt)
             .Where(t => t.Id == id && t.UserId == userId)
-            .Select(t => ToDto(t))
+            .Select(t => TransactionMapper.ToDto(t))
             .FirstAsync(cancellationToken);
     }
-
-    private static TransactionDto ToDto(Transaction t) => new(
-        t.Id,
-        t.AccountId,
-        t.CategoryId,
-        t.Category != null ? t.Category.Name : null,
-        t.Type.ToString(),
-        t.Amount,
-        t.Currency,
-        t.OccurredAt,
-        t.Source.ToString(),
-        t.Comment,
-        t.ReceiptId,
-        t.Receipt != null ? t.Receipt.MerchantName : null,
-        t.CreatedAt);
 }

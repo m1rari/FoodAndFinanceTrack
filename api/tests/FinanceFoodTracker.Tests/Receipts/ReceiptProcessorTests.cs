@@ -1,3 +1,4 @@
+using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.Common.Options;
 using FinanceFoodTracker.Application.Receipts;
 using FinanceFoodTracker.Application.Receipts.Analysis;
@@ -38,8 +39,20 @@ public sealed class ReceiptProcessorTests
         }
     }
 
+    private sealed class FakeTelegramBot : ITelegramBot
+    {
+        public Task SendMessageAsync(long chatId, string text, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<byte[]?> DownloadFileAsync(string fileId, CancellationToken cancellationToken = default)
+            => Task.FromResult<byte[]?>(null);
+
+        public Task SetWebhookAsync(string url, string? secretToken, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
     private static ReceiptProcessor CreateProcessor(Infrastructure.Persistence.AppDbContext db, IReceiptAnalyzer analyzer)
-        => new(db, analyzer, Options.Create(new AiOptions { ConfidenceThreshold = 0.6m }), NullLogger<ReceiptProcessor>.Instance);
+        => new(db, analyzer, new FakeTelegramBot(), Options.Create(new AiOptions { ConfidenceThreshold = 0.6m }), NullLogger<ReceiptProcessor>.Instance);
 
     private static async Task<(Infrastructure.Persistence.AppDbContext Db, Receipt Receipt, Guid ExpenseCategoryId)> SeedAsync()
     {

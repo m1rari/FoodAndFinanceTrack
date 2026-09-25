@@ -3,6 +3,7 @@ using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.Receipts;
 using FinanceFoodTracker.Domain.Entities;
 using FinanceFoodTracker.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace FinanceFoodTracker.Tests.Receipts;
@@ -220,5 +221,90 @@ public sealed class ReceiptServiceTests
         var created = await service.CreateAsync(userId, JpegBytes, "receipt.jpg");
 
         await Assert.ThrowsAsync<NotFoundException>(() => service.GetAsync(Guid.NewGuid(), created.Id));
+    }
+
+    [Fact]
+    public async Task GetMatches_FindsSimilarManualOperation()
+    {
+        var (db, userId, _, _) = await SeedAsync();
+        await using var _1 = db;
+        var account = await db.Accounts.FirstAsync();
+        var service = new ReceiptService(db, new FakeFileStorage(), new FakeQueue());
+
+        var created = await service.CreateAsync(userId, JpegBytes, "receipt.jpg");
+        await service.AddItemAsync(userId, created.Id, new CreateReceiptItemRequest("Товар", 1, 10.88m));
+
+        db.Transactions.Add(new Transaction
+        {
+            UserId = userId,
+            AccountId = account.Id,
+            Type = TransactionType.Expense,
+            Amount = 10.88m,
+            OccurredAt = DateTimeOffset.UtcNow,
+            Source = TransactionSource.Manual,
+            Comment = "кола чипсы"
+        });
+        await db.SaveChangesAsync();
+
+        var matches = await service.GetMatchesAsync(userId, created.Id);
+
+        Assert.Single(matches);
+        Assert.Equal("кола чипсы", matches[0].Comment);
+    }
+
+    [Fact]
+    public async Task GetMatches_IgnoresDifferentAmountAndSource()
+    {
+        var (db, userId, _, _) = await SeedAsync();
+        await using var _1 = db;
+        var account = await db.Accounts.FirstAsync();
+        var service = new ReceiptService(db, new FakeFileStorage(), new FakeQueue());
+
+        var created = await service.CreateAsync(userId, JpegBytes, "receipt.jpg");
+        await service.AddItemAsync(userId, created.Id, new CreateReceiptItemRequest("Товар", 1, 10.88m));
+
+        db.Transactions.Add(new Transaction
+        {
+            UserId = userId,
+            AccountId = account.Id,
+            Type = TransactionType.Expense,
+            Amount = 99m,
+            OccurredAt = DateTimeOffset.UtcNow,
+            Source = TransactionSource.Manual
+        });
+        await db.SaveChangesAsync();
+
+        Assert.Empty(await service.GetMatchesAsync(userId, created.Id));
+    }
+
+    [Fact]
+    public async Task Link_AttachesReceiptAndBlocksEdits()
+    {
+        var (db, userId, _, _) = await SeedAsync();
+        await using var _1 = db;
+        var account = await db.Accounts.FirstAsync();
+        var service = new ReceiptService(db, new FakeFileStorage(), new FakeQueue());
+
+        var created = await service.CreateAsync(userId, JpegBytes, "receipt.jpg");
+        await service.AddItemAsync(userId, created.Id, new CreateReceiptItemRequest("Товар", 1, 10.88m));
+
+        var manual = new Transaction
+        {
+            UserId = userId,
+            AccountId = account.Id,
+            Type = TransactionType.Expense,
+            Amount = 10.88m,
+            OccurredAt = DateTimeOffset.UtcNow,
+            Source = TransactionSource.Manual
+        };
+        db.Transactions.Add(manual);
+        await db.SaveChangesAsync();
+
+        var result = await service.LinkAsync(userId, created.Id, manual.Id);
+
+        Assert.True(result.Confirmed);
+        Assert.Equal(created.Id, manual.ReceiptId);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            service.AddItemAsync(userId, created.Id, new CreateReceiptItemRequest("Ещё", 1, 1m)));
     }
 }

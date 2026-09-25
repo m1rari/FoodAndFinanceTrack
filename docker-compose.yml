@@ -33,6 +33,8 @@ services:
       - ConnectionStrings__Default=Host=db;Database=finance;Username=app;Password=${DB_PASSWORD}
       - Telegram__BotToken=${BOT_TOKEN}
       - Telegram__InitDataTtl=${INIT_DATA_TTL:-24:00:00}
+      - Telegram__WebhookSecret=${TELEGRAM_WEBHOOK_SECRET:-}
+      - Telegram__PublicBaseUrl=${PUBLIC_BASE_URL:-}
       - OpenCodeGo__ApiKey=${OPENCODE_GO_KEY}
       - OpenCodeGo__Model=${AI_MODEL:-deepseek-v4-flash-vision-exp}
       - Ai__ConfidenceThreshold=${AI_CONFIDENCE_THRESHOLD:-0.6}

@@ -1,6 +1,7 @@
 using FinanceFoodTracker.Application.Common.Exceptions;
 using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.Receipts;
+using FinanceFoodTracker.Application.Transactions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinanceFoodTracker.Api.Controllers;
@@ -64,4 +65,12 @@ public sealed class ReceiptsController : ControllerBase
     [HttpPost("{id:guid}/confirm")]
     public async Task<ActionResult<ReceiptDto>> Confirm(Guid id, CancellationToken cancellationToken)
         => Ok(await _receipts.ConfirmAsync(_currentUser.UserId, id, cancellationToken));
+
+    [HttpGet("{id:guid}/matches")]
+    public async Task<ActionResult<IReadOnlyList<TransactionDto>>> GetMatches(Guid id, CancellationToken cancellationToken)
+        => Ok(await _receipts.GetMatchesAsync(_currentUser.UserId, id, cancellationToken));
+
+    [HttpPost("{id:guid}/link/{transactionId:guid}")]
+    public async Task<ActionResult<ReceiptDto>> Link(Guid id, Guid transactionId, CancellationToken cancellationToken)
+        => Ok(await _receipts.LinkAsync(_currentUser.UserId, id, transactionId, cancellationToken));
 }
