@@ -87,6 +87,36 @@ public sealed class FoodLogServiceTests
     }
 
     [Fact]
+    public async Task Create_WithContext_StoresIt()
+    {
+        var (db, userId) = await SeedAsync();
+        await using var _1 = db;
+        var service = new FoodLogService(db, new FakeFileStorage(), new FakeQueue());
+
+        var result = await service.CreateAsync(userId, JpegBytes, "dish.jpg", context: "  омлет с сыром  ");
+
+        Assert.Equal("омлет с сыром", result.UserContext);
+    }
+
+    [Fact]
+    public async Task Reanalyze_UpdatesContextAndEnqueues()
+    {
+        var (db, userId) = await SeedAsync();
+        await using var _1 = db;
+        var queue = new FakeQueue();
+        var service = new FoodLogService(db, new FakeFileStorage(), queue);
+
+        var created = await service.CreateAsync(userId, JpegBytes, "dish.jpg", context: "суп");
+        queue.Enqueued.Clear();
+
+        var result = await service.ReanalyzeAsync(userId, created.Id, "борщ со сметаной");
+
+        Assert.Equal("Pending", result.Status);
+        Assert.Equal("борщ со сметаной", result.UserContext);
+        Assert.Contains(created.Id, queue.Enqueued);
+    }
+
+    [Fact]
     public async Task Create_UnsupportedContent_Throws()
     {
         var (db, userId) = await SeedAsync();

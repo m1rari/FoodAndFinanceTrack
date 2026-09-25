@@ -8,6 +8,7 @@ public class FoodLog : Entity
     public User? User { get; set; }
     public string ImagePath { get; set; } = string.Empty;
     public string? DishName { get; set; }
+    public string? UserContext { get; set; }
     public decimal? CaloriesMin { get; set; }
     public decimal? CaloriesMax { get; set; }
     public decimal? ProteinG { get; set; }

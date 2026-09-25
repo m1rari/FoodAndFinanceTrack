@@ -3,6 +3,7 @@ namespace FinanceFoodTracker.Application.FoodLogs;
 public sealed record FoodLogDto(
     Guid Id,
     string? DishName,
+    string? UserContext,
     decimal? CaloriesMin,
     decimal? CaloriesMax,
     decimal? ProteinMinG,
@@ -23,6 +24,7 @@ public sealed record FoodLogImageDto(byte[] Content, string ContentType);
 
 public sealed record UpdateFoodLogRequest(
     string? DishName = null,
+    string? UserContext = null,
     decimal? CaloriesMin = null,
     decimal? CaloriesMax = null,
     decimal? ProteinMinG = null,
@@ -32,3 +34,5 @@ public sealed record UpdateFoodLogRequest(
     decimal? CarbsMinG = null,
     decimal? CarbsMaxG = null,
     DateTimeOffset? EatenAt = null);
+
+public sealed record ReanalyzeFoodLogRequest(string? Context = null);

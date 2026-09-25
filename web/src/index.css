@@ -243,7 +243,8 @@ button:disabled {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   font: inherit;
   color: var(--text);
   background: var(--secondary-bg);
@@ -251,6 +252,11 @@ button:disabled {
   border-radius: 10px;
   padding: 12px;
   width: 100%;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 72px;
 }
 
 .field input:focus,

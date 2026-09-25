@@ -14,6 +14,7 @@ public sealed class FoodLogConfiguration : IEntityTypeConfiguration<FoodLog>
         builder.Property(f => f.UserId).HasColumnName("user_id").IsRequired();
         builder.Property(f => f.ImagePath).HasColumnName("image_path").IsRequired();
         builder.Property(f => f.DishName).HasColumnName("dish_name").HasMaxLength(500);
+        builder.Property(f => f.UserContext).HasColumnName("user_context").HasMaxLength(1000);
         builder.Property(f => f.CaloriesMin).HasColumnName("calories_min").HasPrecision(10, 2);
         builder.Property(f => f.CaloriesMax).HasColumnName("calories_max").HasPrecision(10, 2);
         builder.Property(f => f.ProteinG).HasColumnName("protein_g").HasPrecision(10, 2);

@@ -40,7 +40,7 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
 
         try
         {
-            var request = new FoodAnalysisRequest(log.ImagePath, log.Id.ToString());
+            var request = new FoodAnalysisRequest(log.ImagePath, log.Id.ToString(), log.UserContext);
             var result = await _analyzer.AnalyzeAsync(request, cancellationToken);
 
             ApplyResult(log, result);

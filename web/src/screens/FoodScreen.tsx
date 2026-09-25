@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { api, ApiError } from '../api/client'
 import type { FoodLogDto } from '../api/types'
+import BottomSheet from '../components/BottomSheet'
 import { compressImage } from '../utils/image'
 import { addDays, dayRange, formatDayTitle } from '../utils/date'
 import { formatTime } from '../utils/format'
@@ -43,6 +44,8 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [pending, setPending] = useState<{ blob: Blob; fileName: string; previewUrl: string } | null>(null)
+  const [context, setContext] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -81,11 +84,36 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
     }
 
     setError(null)
+    const compressed = await compressImage(file)
+    setContext('')
+    setPending({
+      blob: compressed.blob,
+      fileName: compressed.fileName,
+      previewUrl: URL.createObjectURL(compressed.blob),
+    })
+  }
+
+  function cancelPending() {
+    if (pending) {
+      URL.revokeObjectURL(pending.previewUrl)
+    }
+
+    setPending(null)
+    setContext('')
+  }
+
+  async function confirmUpload() {
+    if (!pending) {
+      return
+    }
+
     setUploading(true)
+    setError(null)
 
     try {
-      const compressed = await compressImage(file)
-      const uploaded = await api.uploadFoodLog(compressed.blob, compressed.fileName)
+      const uploaded = await api.uploadFoodLog(pending.blob, pending.fileName, context.trim() || undefined)
+      URL.revokeObjectURL(pending.previewUrl)
+      setPending(null)
       onUploaded(uploaded.id)
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить фото')
@@ -161,6 +189,32 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
       <button className="ghost" disabled={uploading} onClick={() => galleryInput.current?.click()}>
         Выбрать фото из галереи
       </button>
+
+      <BottomSheet open={pending !== null} title="Добавить блюдо" onClose={cancelPending}>
+        {pending && <img className="receipt-image" src={pending.previewUrl} alt="Блюдо" />}
+
+        <label className="field">
+          <span>Что на фото? (необязательно)</span>
+          <textarea
+            className="textarea"
+            rows={3}
+            placeholder="Например: домашний борщ со сметаной, порция ~300 г"
+            value={context}
+            onChange={(event) => setContext(event.target.value)}
+          />
+        </label>
+
+        <p className="muted small">Контекст помогает AI точнее распознать блюдо и порцию.</p>
+
+        <div className="actions">
+          <button type="button" className="ghost" onClick={cancelPending}>
+            Отмена
+          </button>
+          <button type="button" className="primary" disabled={uploading} onClick={confirmUpload}>
+            {uploading ? 'Распознавание…' : 'Распознать'}
+          </button>
+        </div>
+      </BottomSheet>
     </section>
   )
 }

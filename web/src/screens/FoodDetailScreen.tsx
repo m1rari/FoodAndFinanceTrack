@@ -53,6 +53,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
   const [deleting, setDeleting] = useState(false)
 
   const [dishName, setDishName] = useState('')
+  const [context, setContext] = useState('')
   const [calMin, setCalMin] = useState('')
   const [calMax, setCalMax] = useState('')
   const [proteinMin, setProteinMin] = useState('')
@@ -146,6 +147,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
     }
 
     setDishName(log.dishName ?? '')
+    setContext(log.userContext ?? '')
     setCalMin(log.caloriesMin != null ? String(log.caloriesMin) : '')
     setCalMax(log.caloriesMax != null ? String(log.caloriesMax) : '')
     setProteinMin(log.proteinMinG != null ? String(log.proteinMinG) : '')
@@ -170,6 +172,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
 
     const body: UpdateFoodLogRequest = {
       dishName: dishName.trim() === '' ? undefined : dishName.trim(),
+      userContext: context,
       caloriesMin: parseNumber(calMin),
       caloriesMax: parseNumber(calMax),
       proteinMinG: parseNumber(proteinMin),
@@ -188,6 +191,26 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
       onChanged()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleReanalyze(useContext: boolean) {
+    if (!log) {
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      const updated = await api.reanalyzeFoodLog(log.id, useContext ? context : undefined)
+      setLog(updated)
+      setEditOpen(false)
+      onChanged()
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось запустить повторный анализ')
     } finally {
       setSaving(false)
     }
@@ -258,8 +281,18 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
             </div>
           </div>
 
+          {log.userContext && (
+            <div className="card">
+              <span className="muted small">Контекст</span>
+              <span>{log.userContext}</span>
+            </div>
+          )}
+
           <button className="primary" onClick={openEditor}>
             Скорректировать
+          </button>
+          <button className="ghost" disabled={saving} onClick={() => handleReanalyze(false)}>
+            Распознать заново
           </button>
           <button className="danger" onClick={() => setDeleteOpen(true)}>
             Удалить блюдо
@@ -272,6 +305,17 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
           <label className="field">
             <span>Название</span>
             <input value={dishName} onChange={(event) => setDishName(event.target.value)} enterKeyHint="done" />
+          </label>
+
+          <label className="field">
+            <span>Контекст для AI (необязательно)</span>
+            <textarea
+              className="textarea"
+              rows={3}
+              placeholder="Например: порция ~300 г, с маслом"
+              value={context}
+              onChange={(event) => setContext(event.target.value)}
+            />
           </label>
 
           <div className="item-grid">
@@ -322,6 +366,10 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
             <span>Время</span>
             <input type="datetime-local" value={eatenAt} onChange={(event) => setEatenAt(event.target.value)} />
           </label>
+
+          <button type="button" className="ghost" disabled={saving} onClick={() => handleReanalyze(true)}>
+            Распознать заново с этим контекстом
+          </button>
 
           <div className="actions">
             <button type="button" className="ghost" onClick={() => setEditOpen(false)}>

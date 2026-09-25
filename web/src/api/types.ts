@@ -100,6 +100,7 @@ export interface ReceiptSummaryDto {
 export interface FoodLogDto {
   id: string
   dishName: string | null
+  userContext: string | null
   caloriesMin: number | null
   caloriesMax: number | null
   proteinMinG: number | null
@@ -119,6 +120,7 @@ export interface FoodLogDto {
 
 export interface UpdateFoodLogRequest {
   dishName?: string | null
+  userContext?: string | null
   caloriesMin?: number | null
   caloriesMax?: number | null
   proteinMinG?: number | null

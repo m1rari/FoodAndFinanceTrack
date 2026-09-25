@@ -144,14 +144,25 @@ export const api = {
 
   foodLog: (id: string) => request<FoodLogDto>(`/api/food-logs/${id}`),
 
-  uploadFoodLog: (file: Blob, fileName: string) => {
+  uploadFoodLog: (file: Blob, fileName: string, context?: string) => {
     const form = new FormData()
     form.append('file', file, fileName)
+
+    if (context) {
+      form.append('context', context)
+    }
+
     return request<FoodLogDto>('/api/food-logs', { method: 'POST', body: form })
   },
 
   updateFoodLog: (id: string, body: UpdateFoodLogRequest) =>
     request<FoodLogDto>(`/api/food-logs/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  reanalyzeFoodLog: (id: string, context?: string) =>
+    request<FoodLogDto>(`/api/food-logs/${id}/reanalyze`, {
+      method: 'POST',
+      body: JSON.stringify({ context: context ?? null }),
+    }),
 
   deleteFoodLog: (id: string) => request<void>(`/api/food-logs/${id}`, { method: 'DELETE' }),
 }

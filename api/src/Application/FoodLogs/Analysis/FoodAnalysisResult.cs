@@ -1,6 +1,6 @@
 namespace FinanceFoodTracker.Application.FoodLogs.Analysis;
 
-public sealed record FoodAnalysisRequest(string ImagePath, string SessionId);
+public sealed record FoodAnalysisRequest(string ImagePath, string SessionId, string? Context = null);
 
 public sealed record FoodAnalysisResult(
     string? DishName = null,

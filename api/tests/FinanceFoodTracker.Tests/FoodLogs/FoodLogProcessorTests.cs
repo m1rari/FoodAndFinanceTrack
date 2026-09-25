@@ -78,6 +78,21 @@ public sealed class FoodLogProcessorTests
     }
 
     [Fact]
+    public async Task Process_PassesUserContextToAnalyzer()
+    {
+        var (db, log) = await SeedAsync();
+        await using var _ = db;
+        log.UserContext = "домашняя паста с курицей";
+        await db.SaveChangesAsync();
+        var analyzer = new FakeAnalyzer(new FoodAnalysisResult(DishName: "Паста", CaloriesMin: 400, CaloriesMax: 600));
+        var processor = CreateProcessor(db, analyzer);
+
+        await processor.ProcessAsync(log.Id);
+
+        Assert.Equal("домашняя паста с курицей", analyzer.LastRequest!.Context);
+    }
+
+    [Fact]
     public async Task Process_LowConfidence_NeedsReview()
     {
         var (db, log) = await SeedAsync();

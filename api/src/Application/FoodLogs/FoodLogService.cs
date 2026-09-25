@@ -20,7 +20,7 @@ public sealed class FoodLogService : IFoodLogService
         _queue = queue;
     }
 
-    public async Task<FoodLogDto> CreateAsync(Guid userId, byte[] content, string fileName, CancellationToken cancellationToken = default)
+    public async Task<FoodLogDto> CreateAsync(Guid userId, byte[] content, string fileName, string? context = null, CancellationToken cancellationToken = default)
     {
         if (content.Length == 0)
         {
@@ -37,7 +37,8 @@ public sealed class FoodLogService : IFoodLogService
             UserId = userId,
             ImagePath = imagePath,
             EatenAt = DateTimeOffset.UtcNow,
-            Status = ProcessingStatus.Pending
+            Status = ProcessingStatus.Pending,
+            UserContext = Normalize(context)
         };
 
         _db.FoodLogs.Add(log);
@@ -89,6 +90,11 @@ public sealed class FoodLogService : IFoodLogService
             log.DishName = string.IsNullOrWhiteSpace(request.DishName) ? null : request.DishName.Trim();
         }
 
+        if (request.UserContext is not null)
+        {
+            log.UserContext = Normalize(request.UserContext);
+        }
+
         log.CaloriesMin = request.CaloriesMin ?? log.CaloriesMin;
         log.CaloriesMax = request.CaloriesMax ?? log.CaloriesMax;
         log.ProteinMinG = request.ProteinMinG ?? log.ProteinMinG;
@@ -127,6 +133,25 @@ public sealed class FoodLogService : IFoodLogService
         }
     }
 
+    public async Task<FoodLogDto> ReanalyzeAsync(Guid userId, Guid id, string? context, CancellationToken cancellationToken = default)
+    {
+        var log = await GetAsync(userId, id, cancellationToken);
+
+        if (context is not null)
+        {
+            log.UserContext = Normalize(context);
+        }
+
+        log.Status = ProcessingStatus.Pending;
+        await _db.SaveChangesAsync(cancellationToken);
+        await _queue.EnqueueAsync(log.Id, cancellationToken);
+
+        return ToDto(log);
+    }
+
+    private static string? Normalize(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     private async Task<FoodLog> GetAsync(Guid userId, Guid id, CancellationToken cancellationToken)
         => await _db.FoodLogs
             .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId, cancellationToken)
@@ -151,6 +176,7 @@ public sealed class FoodLogService : IFoodLogService
     private static FoodLogDto ToDto(FoodLog f) => new(
         f.Id,
         f.DishName,
+        f.UserContext,
         f.CaloriesMin,
         f.CaloriesMax,
         f.ProteinMinG,

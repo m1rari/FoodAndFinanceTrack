@@ -44,9 +44,15 @@ public sealed class OpenCodeGoFoodImageAnalyzer : IFoodImageAnalyzer
     public async Task<FoodAnalysisResult> AnalyzeAsync(FoodAnalysisRequest request, CancellationToken cancellationToken = default)
     {
         var dataUrl = await BuildDataUrlAsync(request.ImagePath, cancellationToken);
+
+        var userText = string.IsNullOrWhiteSpace(request.Context)
+            ? "Оцени блюдо на изображении и верни JSON по заданной схеме."
+            : $"Оцени блюдо на изображении и верни JSON по заданной схеме. " +
+              $"Контекст от пользователя (учитывай при оценке): {request.Context.Trim()}";
+
         var content = await _client.CompleteJsonAsync(
             SystemPrompt,
-            "Оцени блюдо на изображении и верни JSON по заданной схеме.",
+            userText,
             dataUrl,
             request.SessionId,
             cancellationToken);
