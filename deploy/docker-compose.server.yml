@@ -1,0 +1,38 @@
+# Override для боевого сервера (45.128.205.200).
+# Запуск: docker compose -f docker-compose.yml -f deploy/docker-compose.server.yml ...
+# Подробности — docs/SERVER.md
+#
+# Отличия от базового compose:
+#  - proxy (Caddy) отключён: 80/443 заняты системным nginx (чужой сайт).
+#  - api публикуется только на localhost:8090, наружу ходит через nginx.
+#  - уменьшены лимиты ресурсов под VPS 1 ГБ RAM.
+services:
+  proxy:
+    profiles: ["disabled"]
+
+  api:
+    ports:
+      - "127.0.0.1:8090:8080"
+    mem_limit: 256m
+    cpus: 0.5
+
+  db:
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=20
+      - -c
+      - effective_cache_size=128MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d finance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 320m
+    cpus: 0.5

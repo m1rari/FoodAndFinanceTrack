@@ -23,6 +23,7 @@ Backend + БД + reverse-proxy разворачиваются через **Docke
 | `docs/STACK.md` | Технологический стек, версии, обоснования |
 | `docs/ARCHITECTURE.md` | Архитектура, модель данных, API, AI-пайплайн, инфра |
 | `docs/DECISIONS.md` | Журнал архитектурных решений (ADR) и открытые вопросы |
+| `docs/SERVER.md` | Боевой сервер: SSH-доступ, деплой, архитектура размещения, TLS |
 | `AGENTS.md` | Этот файл: правила работы, команды, конвенции |
 
 ## План репозитория (целевой)
@@ -36,6 +37,7 @@ Backend + БД + reverse-proxy разворачиваются через **Docke
 ├── .env.example              # шаблон секретов (без реальных значений!)
 ├── Caddyfile                 # reverse-proxy + TLS + статика
 ├── proxy/Dockerfile          # node build web -> caddy:alpine (отдаёт /srv)
+├── deploy/                   # server-override compose для боевого VPS
 ├── api/                      # ASP.NET Core backend
 │   ├── FinanceFoodTracker.sln
 │   ├── Dockerfile            # multi-stage: sdk -> aspnet:8-alpine
@@ -52,6 +54,17 @@ Backend + БД + reverse-proxy разворачиваются через **Docke
 - **AI:** OpenCode Go API (vision) через абстракции `IReceiptAnalyzer` / `IFoodImageAnalyzer`.
 - **Инфра:** Docker Compose, alpine-образы, Caddy/Nginx, TLS.
 - Полные детали — в `docs/STACK.md`.
+
+## Боевой сервер
+
+Приложение задеплоено на VPS; на том же сервере живёт чужой сайт `pinsk-elektrik.by`, поэтому там используется **системный nginx**, а Caddy отключён. Полная информация — `docs/SERVER.md`.
+
+```powershell
+ssh -i "$env:USERPROFILE\.ssh\fft_deploy" root@45.128.205.200
+# репозиторий на сервере: /home/FoodTrack/FoodAndFinanceTrack
+```
+
+Приватный ключ в репозиторий не кладём; секреты — только в `.env` на сервере.
 
 ## Команды
 

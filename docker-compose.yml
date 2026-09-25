@@ -37,7 +37,8 @@ services:
     volumes:
       - uploads:/app/uploads
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     mem_limit: 512m
     cpus: 1.0
     logging: *default-logging
@@ -59,6 +60,11 @@ services:
       - effective_cache_size=256MB
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d finance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     mem_limit: 512m
     cpus: 1.0
     logging: *default-logging

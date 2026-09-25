@@ -20,8 +20,7 @@ EXPOSE 8080
 
 COPY --from=build /app/publish .
 
-RUN addgroup -S app && adduser -S app -G app \
-    && mkdir -p /app/uploads \
+RUN mkdir -p /app/uploads \
     && chown -R app:app /app
 
 USER app
