@@ -3,6 +3,7 @@ import type {
   CreateTransactionRequest,
   ReportSummaryDto,
   TransactionDto,
+  UpdateTransactionRequest,
   UserDto,
 } from './types'
 
@@ -85,6 +86,12 @@ export const api = {
   createTransaction: (body: CreateTransactionRequest) =>
     request<TransactionDto>('/api/transactions', {
       method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateTransaction: (id: string, body: UpdateTransactionRequest) =>
+    request<TransactionDto>(`/api/transactions/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(body),
     }),
 

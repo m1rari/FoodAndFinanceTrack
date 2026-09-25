@@ -106,7 +106,11 @@ public sealed class TransactionService : ITransactionService
             transaction.Amount = request.Amount.Value;
         }
 
-        if (request.CategoryId is not null)
+        if (request.ClearCategory)
+        {
+            transaction.CategoryId = null;
+        }
+        else if (request.CategoryId is not null)
         {
             await EnsureCategoryAsync(userId, request.CategoryId.Value, transaction.Type, cancellationToken);
             transaction.CategoryId = request.CategoryId;
@@ -117,7 +121,11 @@ public sealed class TransactionService : ITransactionService
             transaction.OccurredAt = request.OccurredAt.Value;
         }
 
-        if (request.Comment is not null)
+        if (request.ClearComment)
+        {
+            transaction.Comment = null;
+        }
+        else if (request.Comment is not null)
         {
             transaction.Comment = request.Comment;
         }

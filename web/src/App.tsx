@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError, setInitData } from './api/client'
-import type { UserDto } from './api/types'
+import type { TransactionDto, UserDto } from './api/types'
 import { initTelegram } from './telegram/init'
 import TransactionsScreen from './screens/TransactionsScreen'
-import AddTransactionScreen from './screens/AddTransactionScreen'
+import TransactionFormScreen from './screens/TransactionFormScreen'
 import DashboardScreen from './screens/DashboardScreen'
 
-type Tab = 'transactions' | 'dashboard' | 'add'
+type Tab = 'transactions' | 'dashboard' | 'form'
 
 export default function App() {
   const context = useMemo(() => initTelegram(), [])
@@ -16,6 +16,7 @@ export default function App() {
   )
   const [loading, setLoading] = useState(context.initData.length > 0)
   const [tab, setTab] = useState<Tab>('transactions')
+  const [editing, setEditing] = useState<TransactionDto | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -45,7 +46,23 @@ export default function App() {
     return <div className="centered error">{error ?? 'Ошибка авторизации'}</div>
   }
 
-  function handleCreated() {
+  function openAdd() {
+    setEditing(null)
+    setTab('form')
+  }
+
+  function openEdit(transaction: TransactionDto) {
+    setEditing(transaction)
+    setTab('form')
+  }
+
+  function closeForm() {
+    setEditing(null)
+    setTab('transactions')
+  }
+
+  function handleSaved() {
+    setEditing(null)
     setRefreshKey((value) => value + 1)
     setTab('transactions')
   }
@@ -54,27 +71,33 @@ export default function App() {
     <div className="app">
       <main className="content">
         {tab === 'transactions' && (
-          <TransactionsScreen refreshKey={refreshKey} onAdd={() => setTab('add')} />
+          <TransactionsScreen refreshKey={refreshKey} onAdd={openAdd} onEdit={openEdit} />
         )}
         {tab === 'dashboard' && <DashboardScreen refreshKey={refreshKey} />}
-        {tab === 'add' && (
-          <AddTransactionScreen onDone={handleCreated} onCancel={() => setTab('transactions')} />
+        {tab === 'form' && (
+          <TransactionFormScreen transaction={editing} onDone={handleSaved} onCancel={closeForm} />
         )}
       </main>
 
       <nav className="tabbar">
         <button
           className={tab === 'transactions' ? 'tab active' : 'tab'}
-          onClick={() => setTab('transactions')}
+          onClick={() => {
+            setEditing(null)
+            setTab('transactions')
+          }}
         >
           Операции
         </button>
-        <button className={tab === 'add' ? 'tab active' : 'tab'} onClick={() => setTab('add')}>
+        <button className={tab === 'form' && !editing ? 'tab active' : 'tab'} onClick={openAdd}>
           Добавить
         </button>
         <button
           className={tab === 'dashboard' ? 'tab active' : 'tab'}
-          onClick={() => setTab('dashboard')}
+          onClick={() => {
+            setEditing(null)
+            setTab('dashboard')
+          }}
         >
           Отчёты
         </button>

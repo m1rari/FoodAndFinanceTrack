@@ -25,8 +25,10 @@ public sealed record CreateTransactionRequest(
 public sealed record UpdateTransactionRequest(
     decimal? Amount = null,
     Guid? CategoryId = null,
+    bool ClearCategory = false,
     DateTimeOffset? OccurredAt = null,
-    string? Comment = null);
+    string? Comment = null,
+    bool ClearComment = false);
 
 public sealed record TransactionFilter(
     DateTimeOffset? From = null,

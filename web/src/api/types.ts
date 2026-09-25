@@ -51,3 +51,12 @@ export interface CreateTransactionRequest {
   occurredAt?: string | null
   comment?: string | null
 }
+
+export interface UpdateTransactionRequest {
+  amount?: number | null
+  categoryId?: string | null
+  clearCategory?: boolean
+  occurredAt?: string | null
+  comment?: string | null
+  clearComment?: boolean
+}

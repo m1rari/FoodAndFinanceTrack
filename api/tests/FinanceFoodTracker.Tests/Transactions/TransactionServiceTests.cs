@@ -72,4 +72,41 @@ public sealed class TransactionServiceTests
 
         Assert.Equal(42m, updated.Amount);
     }
+
+    [Fact]
+    public async Task Update_ClearCategoryAndComment_ResetsThem()
+    {
+        var (db, userId, categoryId) = await SeedAsync();
+        await using var _ = db;
+        var service = new TransactionService(db);
+
+        var created = await service.CreateAsync(
+            userId,
+            new CreateTransactionRequest(5m, "Expense", categoryId, Comment: "тест"));
+        var updated = await service.UpdateAsync(
+            userId,
+            created.Id,
+            new UpdateTransactionRequest(ClearCategory: true, ClearComment: true));
+
+        Assert.Null(updated.CategoryId);
+        Assert.Null(updated.CategoryName);
+        Assert.Null(updated.Comment);
+    }
+
+    [Fact]
+    public async Task Update_ChangeCategory_SetsNewCategory()
+    {
+        var (db, userId, categoryId) = await SeedAsync();
+        await using var _ = db;
+        var service = new TransactionService(db);
+        var other = new Category { Name = "Транспорт", Type = TransactionType.Expense, IsSystem = true };
+        db.Categories.Add(other);
+        await db.SaveChangesAsync();
+
+        var created = await service.CreateAsync(userId, new CreateTransactionRequest(5m, "Expense", categoryId));
+        var updated = await service.UpdateAsync(userId, created.Id, new UpdateTransactionRequest(CategoryId: other.Id));
+
+        Assert.Equal(other.Id, updated.CategoryId);
+        Assert.Equal("Транспорт", updated.CategoryName);
+    }
 }

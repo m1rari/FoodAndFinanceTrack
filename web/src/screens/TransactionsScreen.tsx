@@ -6,9 +6,10 @@ import { currentMonthRange, formatDate, formatMoney } from '../utils/format'
 interface Props {
   refreshKey: number
   onAdd: () => void
+  onEdit: (transaction: TransactionDto) => void
 }
 
-export default function TransactionsScreen({ refreshKey, onAdd }: Props) {
+export default function TransactionsScreen({ refreshKey, onAdd, onEdit }: Props) {
   const [items, setItems] = useState<TransactionDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,18 +60,23 @@ export default function TransactionsScreen({ refreshKey, onAdd }: Props) {
 
       <ul className="list">
         {items.map((item) => (
-          <li key={item.id} className="list-item">
-            <div className="list-main">
-              <span className="list-title">{item.categoryName ?? 'Без категории'}</span>
-              <span className="muted small">
-                {formatDate(item.occurredAt)}
-                {item.comment ? ` · ${item.comment}` : ''}
+          <li key={item.id}>
+            <button className="list-item" onClick={() => onEdit(item)} aria-label="Редактировать операцию">
+              <span className="list-main">
+                <span className="list-title">{item.categoryName ?? 'Без категории'}</span>
+                <span className="muted small">
+                  {formatDate(item.occurredAt)}
+                  {item.comment ? ` · ${item.comment}` : ''}
+                </span>
               </span>
-            </div>
-            <span className={item.type === 'Income' ? 'amount income' : 'amount expense'}>
-              {item.type === 'Income' ? '+' : '−'}
-              {formatMoney(item.amount, item.currency)}
-            </span>
+              <span className="list-right">
+                <span className={item.type === 'Income' ? 'amount income' : 'amount expense'}>
+                  {item.type === 'Income' ? '+' : '−'}
+                  {formatMoney(item.amount, item.currency)}
+                </span>
+                <span className="muted small">Изменить</span>
+              </span>
+            </button>
           </li>
         ))}
       </ul>
