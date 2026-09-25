@@ -24,6 +24,16 @@ public sealed record ReceiptDto(
 
 public sealed record ReceiptImageDto(byte[] Content, string ContentType);
 
+public sealed record ReceiptSummaryDto(
+    Guid Id,
+    string? MerchantName,
+    DateTimeOffset? PurchaseDate,
+    decimal? TotalAmount,
+    string Status,
+    int ItemCount,
+    bool Confirmed,
+    DateTimeOffset CreatedAt);
+
 public sealed record CreateReceiptItemRequest(
     string Name,
     decimal Quantity,

@@ -43,6 +43,12 @@ public sealed class ReceiptsController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<ReceiptSummaryDto>>> GetList(
+        [FromQuery] bool unconfirmed,
+        CancellationToken cancellationToken)
+        => Ok(await _receipts.GetListAsync(_currentUser.UserId, unconfirmed, cancellationToken));
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ReceiptDto>> Get(Guid id, CancellationToken cancellationToken)
         => Ok(await _receipts.GetAsync(_currentUser.UserId, id, cancellationToken));

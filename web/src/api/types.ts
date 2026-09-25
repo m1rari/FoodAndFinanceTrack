@@ -86,6 +86,17 @@ export interface ReceiptDto {
   confirmed: boolean
 }
 
+export interface ReceiptSummaryDto {
+  id: string
+  merchantName: string | null
+  purchaseDate: string | null
+  totalAmount: number | null
+  status: string
+  itemCount: number
+  confirmed: boolean
+  createdAt: string
+}
+
 export interface CreateReceiptItemRequest {
   name: string
   quantity: number

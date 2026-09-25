@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { CategoryDto, TransactionDto } from '../api/types'
+import type { CategoryDto, ReceiptSummaryDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
 import { customPeriod, dayKey, formatDayLabel, formatPeriodLabel, periodFor } from '../utils/date'
 import type { Period, PeriodPreset } from '../utils/date'
@@ -11,6 +11,13 @@ interface Props {
   onAdd: () => void
   onEdit: (transaction: TransactionDto) => void
   onOpenPurchase: (receiptId: string) => void
+}
+
+const STATUS_SHORT: Record<string, string> = {
+  Pending: 'распознаётся…',
+  Processed: 'нужно проверить',
+  NeedsReview: 'требует проверки',
+  Failed: 'ошибка распознавания',
 }
 
 interface PurchaseGroup {
@@ -99,6 +106,7 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
   const [customTo, setCustomTo] = useState('')
   const [items, setItems] = useState<TransactionDto[]>([])
   const [categories, setCategories] = useState<CategoryDto[]>([])
+  const [receipts, setReceipts] = useState<ReceiptSummaryDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -109,6 +117,25 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
       .then(setCategories)
       .catch(() => setCategories([]))
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    api
+      .receipts(true)
+      .then((data) => {
+        if (!cancelled) {
+          setReceipts(data)
+        }
+      })
+      .catch(() => {
+        // раздел необязателен
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [refreshKey])
 
   useEffect(() => {
     let cancelled = false
@@ -195,6 +222,34 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
           {period.preset === 'custom' ? formatPeriodLabel(period) : 'Фильтры'}
         </button>
       </div>
+
+      {receipts.length > 0 && (
+        <div className="unconfirmed">
+          <h2 className="section-title">Неразобранные покупки</h2>
+          <ul className="list">
+            {receipts.map((receipt) => (
+              <li key={receipt.id}>
+                <button className="list-item" onClick={() => onOpenPurchase(receipt.id)}>
+                  <span className="list-main">
+                    <span className="list-title">{receipt.merchantName ?? 'Покупка'}</span>
+                    <span className="muted small">
+                      {receipt.itemCount} {plural(receipt.itemCount, 'товар', 'товара', 'товаров')}
+                      {' · '}
+                      {STATUS_SHORT[receipt.status] ?? receipt.status}
+                    </span>
+                  </span>
+                  <span className="list-right">
+                    <span className="amount expense">
+                      {receipt.totalAmount != null ? `−${formatMoney(receipt.totalAmount)}` : '—'}
+                    </span>
+                    <span className="muted small">Открыть ›</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {loading && <p className="muted">Загрузка…</p>}
       {error && <p className="error">{error}</p>}

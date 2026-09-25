@@ -462,6 +462,12 @@ button:disabled {
   padding: 8px 12px;
 }
 
+.unconfirmed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .match-card {
   display: flex;
   flex-direction: column;

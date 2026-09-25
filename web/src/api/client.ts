@@ -3,6 +3,7 @@ import type {
   CreateReceiptItemRequest,
   CreateTransactionRequest,
   ReceiptDto,
+  ReceiptSummaryDto,
   ReportSummaryDto,
   TransactionDto,
   UpdateReceiptItemRequest,
@@ -108,6 +109,9 @@ export const api = {
     form.append('file', file, fileName)
     return request<ReceiptDto>('/api/receipts', { method: 'POST', body: form })
   },
+
+  receipts: (unconfirmed = false) =>
+    request<ReceiptSummaryDto[]>(`/api/receipts${buildQuery({ unconfirmed: unconfirmed ? 'true' : undefined })}`),
 
   receipt: (id: string) => request<ReceiptDto>(`/api/receipts/${id}`),
 

@@ -4,6 +4,8 @@ public interface IReceiptService
 {
     Task<ReceiptDto> CreateAsync(Guid userId, byte[] content, string fileName, CancellationToken cancellationToken = default, long? telegramChatId = null);
 
+    Task<IReadOnlyList<ReceiptSummaryDto>> GetListAsync(Guid userId, bool onlyUnconfirmed = false, CancellationToken cancellationToken = default);
+
     Task<ReceiptDto> GetAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
 
     Task<ReceiptImageDto> GetImageAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);

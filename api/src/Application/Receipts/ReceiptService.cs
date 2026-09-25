@@ -52,6 +52,32 @@ public sealed class ReceiptService : IReceiptService
         return await GetDtoAsync(userId, receipt.Id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ReceiptSummaryDto>> GetListAsync(Guid userId, bool onlyUnconfirmed = false, CancellationToken cancellationToken = default)
+    {
+        var query = _db.Receipts
+            .AsNoTracking()
+            .Where(r => r.UserId == userId);
+
+        if (onlyUnconfirmed)
+        {
+            query = query.Where(r => !_db.Transactions.Any(t => t.ReceiptId == r.Id));
+        }
+
+        return await query
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(50)
+            .Select(r => new ReceiptSummaryDto(
+                r.Id,
+                r.MerchantName,
+                r.PurchaseDate,
+                r.TotalAmount,
+                r.Status.ToString(),
+                r.Items.Count,
+                _db.Transactions.Any(t => t.ReceiptId == r.Id),
+                r.CreatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<ReceiptDto> GetAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
         => await GetDtoAsync(userId, id, cancellationToken);
 
