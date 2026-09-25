@@ -97,6 +97,39 @@ public sealed class ReceiptService : IReceiptService
         return new ReceiptImageDto(content, ContentTypeFor(receipt.ImagePath));
     }
 
+    public async Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
+    {
+        var receipt = await _db.Receipts
+            .Include(r => r.Items)
+            .FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId, cancellationToken)
+            ?? throw new NotFoundException("Чек не найден.");
+
+        var transactions = await _db.Transactions
+            .Where(t => t.ReceiptId == receipt.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var transaction in transactions)
+        {
+            if (transaction.Source == TransactionSource.Receipt)
+            {
+                _db.Transactions.Remove(transaction);
+            }
+            else
+            {
+                transaction.ReceiptId = null;
+            }
+        }
+
+        _db.ReceiptItems.RemoveRange(receipt.Items);
+        _db.Receipts.Remove(receipt);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        if (_fileStorage.Exists(receipt.ImagePath))
+        {
+            await _fileStorage.DeleteAsync(receipt.ImagePath, cancellationToken);
+        }
+    }
+
     public async Task<ReceiptDto> AddItemAsync(Guid userId, Guid receiptId, CreateReceiptItemRequest request, CancellationToken cancellationToken = default)
     {
         var receipt = await GetReceiptAsync(userId, receiptId, cancellationToken);

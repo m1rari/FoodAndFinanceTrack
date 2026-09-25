@@ -30,6 +30,18 @@ public sealed class LocalFileStorage : IFileStorage
     public async Task<byte[]> ReadAsync(string path, CancellationToken cancellationToken = default)
         => await File.ReadAllBytesAsync(Resolve(path), cancellationToken);
 
+    public Task DeleteAsync(string path, CancellationToken cancellationToken = default)
+    {
+        var fullPath = Resolve(path);
+
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+        }
+
+        return Task.CompletedTask;
+    }
+
     public bool Exists(string path) => File.Exists(Resolve(path));
 
     private string Resolve(string relativePath)

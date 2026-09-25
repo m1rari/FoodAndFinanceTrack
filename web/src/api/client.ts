@@ -115,6 +115,8 @@ export const api = {
 
   receipt: (id: string) => request<ReceiptDto>(`/api/receipts/${id}`),
 
+  deleteReceipt: (id: string) => request<void>(`/api/receipts/${id}`, { method: 'DELETE' }),
+
   addReceiptItem: (receiptId: string, body: CreateReceiptItemRequest) =>
     request<ReceiptDto>(`/api/receipts/${receiptId}/items`, {
       method: 'POST',

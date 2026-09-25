@@ -114,6 +114,13 @@ button {
   padding: 10px 16px;
 }
 
+.danger {
+  background: var(--danger);
+  color: #ffffff;
+  padding: 10px 16px;
+  font-weight: 600;
+}
+
 button:disabled {
   opacity: 0.6;
   cursor: default;

@@ -31,6 +31,8 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
   const [confirming, setConfirming] = useState(false)
   const [matches, setMatches] = useState<TransactionDto[]>([])
   const [matchesDismissed, setMatchesDismissed] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ReceiptItemDto | null>(null)
@@ -228,6 +230,25 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
     }
   }
 
+  async function handleDelete() {
+    if (!receipt) {
+      return
+    }
+
+    setDeleting(true)
+    setError(null)
+
+    try {
+      await api.deleteReceipt(receipt.id)
+      setDeleteOpen(false)
+      onChanged()
+      onBack()
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось удалить покупку')
+      setDeleting(false)
+    }
+  }
+
   async function handleConfirm() {
     if (!receipt) {
       return
@@ -346,8 +367,28 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
               {confirming ? 'Проведение…' : `Провести покупку · ${formatMoney(receipt.totalAmount ?? 0)}`}
             </button>
           )}
+
+          <button className="danger" onClick={() => setDeleteOpen(true)}>
+            Удалить покупку
+          </button>
         </>
       )}
+
+      <BottomSheet open={deleteOpen} title="Удалить покупку?" onClose={() => setDeleteOpen(false)}>
+        <p className="muted">
+          {receipt?.confirmed
+            ? 'Операции, созданные из этого чека, будут удалены. Прикреплённая вручную операция сохранится.'
+            : 'Чек, товары и оригинал фото будут удалены.'}
+        </p>
+        <div className="actions">
+          <button type="button" className="ghost" onClick={() => setDeleteOpen(false)}>
+            Отмена
+          </button>
+          <button type="button" className="danger" disabled={deleting} onClick={handleDelete}>
+            {deleting ? 'Удаление…' : 'Удалить'}
+          </button>
+        </div>
+      </BottomSheet>
 
       <BottomSheet
         open={editorOpen}

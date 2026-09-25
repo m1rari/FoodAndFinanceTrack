@@ -60,6 +60,13 @@ public sealed class ReceiptsController : ControllerBase
         return File(image.Content, image.ContentType);
     }
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await _receipts.DeleteAsync(_currentUser.UserId, id, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost("{id:guid}/items")]
     public async Task<ActionResult<ReceiptDto>> AddItem(Guid id, [FromBody] CreateReceiptItemRequest request, CancellationToken cancellationToken)
         => Ok(await _receipts.AddItemAsync(_currentUser.UserId, id, request, cancellationToken));

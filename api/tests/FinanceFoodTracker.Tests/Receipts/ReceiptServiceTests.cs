@@ -16,6 +16,8 @@ public sealed class ReceiptServiceTests
     {
         private readonly Dictionary<string, byte[]> _files = new();
 
+        public List<string> Deleted { get; } = new();
+
         public Task<string> SaveAsync(byte[] content, string extension, CancellationToken cancellationToken = default)
         {
             var path = $"{Guid.NewGuid():N}{extension}";
@@ -25,6 +27,13 @@ public sealed class ReceiptServiceTests
 
         public Task<byte[]> ReadAsync(string path, CancellationToken cancellationToken = default)
             => Task.FromResult(_files[path]);
+
+        public Task DeleteAsync(string path, CancellationToken cancellationToken = default)
+        {
+            Deleted.Add(path);
+            _files.Remove(path);
+            return Task.CompletedTask;
+        }
 
         public bool Exists(string path) => _files.ContainsKey(path);
     }
@@ -306,5 +315,74 @@ public sealed class ReceiptServiceTests
         Assert.Equal(created.Id, manual.ReceiptId);
         await Assert.ThrowsAsync<ValidationException>(() =>
             service.AddItemAsync(userId, created.Id, new CreateReceiptItemRequest("Ещё", 1, 1m)));
+    }
+
+    [Fact]
+    public async Task Delete_Unconfirmed_RemovesReceiptItemsAndFile()
+    {
+        var (db, userId, _, _) = await SeedAsync();
+        await using var _1 = db;
+        var storage = new FakeFileStorage();
+        var service = new ReceiptService(db, storage, new FakeQueue());
+
+        var created = await service.CreateAsync(userId, JpegBytes, "receipt.jpg");
+        var path = (await db.Receipts.FindAsync(created.Id))!.ImagePath;
+        await service.AddItemAsync(userId, created.Id, new CreateReceiptItemRequest("Товар", 1, 2m));
+
+        await service.DeleteAsync(userId, created.Id);
+
+        Assert.Null(await db.Receipts.FindAsync(created.Id));
+        Assert.Equal(0, await db.ReceiptItems.CountAsync(i => i.ReceiptId == created.Id));
+        Assert.Contains(path, storage.Deleted);
+    }
+
+    [Fact]
+    public async Task Delete_Confirmed_RemovesCreatedTransactions()
+    {
+        var (db, userId, _, _) = await SeedAsync();
+        await using var _1 = db;
+        var service = new ReceiptService(db, new FakeFileStorage(), new FakeQueue());
+
+        var created = await service.CreateAsync(userId, JpegBytes, "receipt.jpg");
+        await service.AddItemAsync(userId, created.Id, new CreateReceiptItemRequest("Товар", 1, 2m));
+        await service.ConfirmAsync(userId, created.Id);
+
+        Assert.Equal(1, await db.Transactions.CountAsync());
+
+        await service.DeleteAsync(userId, created.Id);
+
+        Assert.Equal(0, await db.Transactions.CountAsync());
+        Assert.Null(await db.Receipts.FindAsync(created.Id));
+    }
+
+    [Fact]
+    public async Task Delete_Linked_KeepsManualTransaction()
+    {
+        var (db, userId, _, _) = await SeedAsync();
+        await using var _1 = db;
+        var account = await db.Accounts.FirstAsync();
+        var service = new ReceiptService(db, new FakeFileStorage(), new FakeQueue());
+
+        var created = await service.CreateAsync(userId, JpegBytes, "receipt.jpg");
+        await service.AddItemAsync(userId, created.Id, new CreateReceiptItemRequest("Товар", 1, 10.88m));
+
+        var manual = new Transaction
+        {
+            UserId = userId,
+            AccountId = account.Id,
+            Type = TransactionType.Expense,
+            Amount = 10.88m,
+            OccurredAt = DateTimeOffset.UtcNow,
+            Source = TransactionSource.Manual
+        };
+        db.Transactions.Add(manual);
+        await db.SaveChangesAsync();
+
+        await service.LinkAsync(userId, created.Id, manual.Id);
+        await service.DeleteAsync(userId, created.Id);
+
+        var reloaded = await db.Transactions.FindAsync(manual.Id);
+        Assert.NotNull(reloaded);
+        Assert.Null(reloaded!.ReceiptId);
     }
 }

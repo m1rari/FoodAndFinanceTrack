@@ -6,5 +6,7 @@ public interface IFileStorage
 
     Task<byte[]> ReadAsync(string path, CancellationToken cancellationToken = default);
 
+    Task DeleteAsync(string path, CancellationToken cancellationToken = default);
+
     bool Exists(string path);
 }
