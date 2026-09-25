@@ -72,7 +72,10 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
         log.CarbsG = Midpoint(result.CarbsMinG, result.CarbsMaxG);
         log.AiRawResponse = EnsureJson(result.RawResponse);
 
-        var hasData = log.DishName is not null || log.CaloriesMin is not null || log.CaloriesMax is not null;
+        var hasDish = !string.IsNullOrWhiteSpace(log.DishName)
+            && !string.Equals(log.DishName, "Не определено", StringComparison.OrdinalIgnoreCase);
+        var hasCalories = log.CaloriesMin is > 0 || log.CaloriesMax is > 0;
+        var hasData = hasDish || hasCalories;
         var lowConfidence = result.Confidence is not null && result.Confidence < threshold;
 
         log.Status = hasData && !lowConfidence ? ProcessingStatus.Processed : ProcessingStatus.NeedsReview;

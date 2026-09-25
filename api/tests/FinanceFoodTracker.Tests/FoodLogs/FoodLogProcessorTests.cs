@@ -102,6 +102,22 @@ public sealed class FoodLogProcessorTests
     }
 
     [Fact]
+    public async Task Process_PlaceholderAnswer_NeedsReview()
+    {
+        var (db, log) = await SeedAsync();
+        await using var _ = db;
+        var processor = CreateProcessor(db, new FakeAnalyzer(new FoodAnalysisResult(
+            DishName: "Не определено",
+            CaloriesMin: 0,
+            CaloriesMax: 0,
+            Confidence: 0.9m)));
+
+        await processor.ProcessAsync(log.Id);
+
+        Assert.Equal(ProcessingStatus.NeedsReview, log.Status);
+    }
+
+    [Fact]
     public async Task Process_AnalyzerFailure_SetsFailed()
     {
         var (db, log) = await SeedAsync();
