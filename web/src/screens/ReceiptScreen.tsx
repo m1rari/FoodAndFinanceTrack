@@ -120,7 +120,8 @@ function ReceiptItemCard({
 }
 
 export default function ReceiptScreen() {
-  const fileInput = useRef<HTMLInputElement>(null)
+  const galleryInput = useRef<HTMLInputElement>(null)
+  const cameraInput = useRef<HTMLInputElement>(null)
   const [receipt, setReceipt] = useState<ReceiptDto | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [categories, setCategories] = useState<CategoryDto[]>([])
@@ -262,21 +263,28 @@ export default function ReceiptScreen() {
         </header>
 
         <p className="muted">
-          Сфотографируйте чек — оригинал сохранится, а позиции можно будет заполнить и поправить вручную.
+          Сфотографируйте чек или выберите фото из галереи — оригинал сохранится, а позиции можно будет
+          заполнить и поправить вручную.
         </p>
 
         <input
-          ref={fileInput}
+          ref={cameraInput}
           type="file"
           accept="image/*"
           capture="environment"
           hidden
           onChange={handleFile}
         />
+        <input ref={galleryInput} type="file" accept="image/*" hidden onChange={handleFile} />
 
-        <button className="primary" disabled={uploading} onClick={() => fileInput.current?.click()}>
-          {uploading ? 'Загрузка…' : 'Загрузить фото чека'}
-        </button>
+        <div className="segmented">
+          <button className="primary" disabled={uploading} onClick={() => cameraInput.current?.click()}>
+            {uploading ? 'Загрузка…' : 'Сфотографировать'}
+          </button>
+          <button className="ghost" disabled={uploading} onClick={() => galleryInput.current?.click()}>
+            Из галереи
+          </button>
+        </div>
 
         {error && <p className="error">{error}</p>}
       </section>
