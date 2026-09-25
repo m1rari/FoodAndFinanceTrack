@@ -45,7 +45,10 @@ public sealed class ReceiptProcessor : IReceiptProcessor
                 .OrderBy(c => c.Name)
                 .ToListAsync(cancellationToken);
 
-            var request = new ReceiptAnalysisRequest(receipt.ImagePath, categories.Select(c => c.Name).ToList());
+            var request = new ReceiptAnalysisRequest(
+                receipt.ImagePath,
+                categories.Select(c => c.Name).ToList(),
+                receipt.Id.ToString());
             var result = await _analyzer.AnalyzeAsync(request, cancellationToken);
 
             ApplyResult(receipt, result, categories);

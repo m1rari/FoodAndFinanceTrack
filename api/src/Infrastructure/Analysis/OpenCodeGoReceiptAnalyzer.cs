@@ -69,6 +69,7 @@ public sealed class OpenCodeGoReceiptAnalyzer : IReceiptAnalyzer
             Content = JsonContent.Create(body, options: SerializerOptions)
         };
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        httpRequest.Headers.TryAddWithoutValidation("x-opencode-session", request.SessionId);
 
         using var response = await _http.SendAsync(httpRequest, cancellationToken);
 
