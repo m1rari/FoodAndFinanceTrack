@@ -80,6 +80,20 @@
 - **Решение:** `POST /api/receipts` принимает multipart ≤ 8 МБ, тип определяется по magic bytes (JPEG/PNG/WebP), оригинал сохраняется через `IFileStorage`. `StubReceiptAnalyzer` не извлекает данные → чек получает статус `NeedsReview`; позиции добавляются/правятся вручную (`POST`/`PATCH .../items`), итог пересчитывается по позициям, статус → `Processed`.
 - **Последствия:** полный пользовательский сценарий проверяем уже без AI; на Этапе 3 заглушка заменяется реализацией `IReceiptAnalyzer` и фоновой обработкой. Итог чека (`TotalAmount`) на Этапе 2 — сумма позиций, а не значение с чека.
 
+### ADR-010: AI-анализ чеков — OpenCode Go (OpenAI-совместимый) + фоновая очередь
+- **Дата:** 2026-09-26
+- **Статус:** принято
+- **Контекст:** ТЗ §7 требует structured JSON, изоляцию провайдера и асинхронный анализ; ADR-003 — без Redis.
+- **Решение:** провайдер вызывается через `IReceiptAnalyzer`; реализация `OpenCodeGoReceiptAnalyzer` шлёт `POST {BaseUrl}/chat/completions` (OpenAI-совместимо, `image_url` с base64 data URL, Bearer). Промпт со strict JSON schema + `response_format: json_object` (с ретраем без него при 400). OCR выполняет сама vision-модель, распознанный текст пишется в `raw_ocr_text`. Очередь — `Channel<Guid>` (`IReceiptProcessingQueue`) + `BackgroundService` (`ReceiptProcessingWorker`) с восстановлением `pending`-чеков при старте. Вся валидация и маппинг категорий — в `ReceiptProcessor`.
+- **Последствия:** при перезапуске не потерянные задачи восстанавливаются из БД; провайдер заменяется без правки Application; при пустом `OPENCODE_GO_KEY` используется `StubReceiptAnalyzer` → `needs_review`. Порог — `Ai:ConfidenceThreshold` (env `AI_CONFIDENCE_THRESHOLD`), модель — `OpenCodeGo:Model` (env `AI_MODEL`).
+
+### ADR-011: Подтверждение чека и создание операций
+- **Дата:** 2026-09-26
+- **Статус:** принято
+- **Контекст:** нужен явный момент «чек подтверждён», чтобы не заводить операции дважды и не редактировать подтверждённое.
+- **Решение:** `POST /api/receipts/{id}/confirm` создаёт по `Transaction` на каждую позицию (`source = receipt`, `receiptId`, категория позиции, дата — `purchase_date` или `created_at`). Факт подтверждения определяется наличием транзакций с этим `receipt_id` (без новой колонки/миграции). После подтверждения правки позиций запрещены (400).
+- **Последствия:** не нужен новый столбец `confirmed_at` и миграция; повторный `confirm` возвращает ошибку. Редактирование операций после проведения — через обычный `PATCH /api/transactions`.
+
 ---
 
 ## Открытые вопросы

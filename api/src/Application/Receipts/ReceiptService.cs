@@ -1,6 +1,5 @@
 using FinanceFoodTracker.Application.Common.Exceptions;
 using FinanceFoodTracker.Application.Common.Interfaces;
-using FinanceFoodTracker.Application.Receipts.Analysis;
 using FinanceFoodTracker.Domain.Entities;
 using FinanceFoodTracker.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -15,13 +14,13 @@ public sealed class ReceiptService : IReceiptService
 
     private readonly IApplicationDbContext _db;
     private readonly IFileStorage _fileStorage;
-    private readonly IReceiptAnalyzer _analyzer;
+    private readonly IReceiptProcessingQueue _queue;
 
-    public ReceiptService(IApplicationDbContext db, IFileStorage fileStorage, IReceiptAnalyzer analyzer)
+    public ReceiptService(IApplicationDbContext db, IFileStorage fileStorage, IReceiptProcessingQueue queue)
     {
         _db = db;
         _fileStorage = fileStorage;
-        _analyzer = analyzer;
+        _queue = queue;
     }
 
     public async Task<ReceiptDto> CreateAsync(Guid userId, byte[] content, string fileName, CancellationToken cancellationToken = default)
@@ -46,9 +45,7 @@ public sealed class ReceiptService : IReceiptService
         _db.Receipts.Add(receipt);
         await _db.SaveChangesAsync(cancellationToken);
 
-        await AnalyzeAsync(receipt, imagePath, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
-
+        await _queue.EnqueueAsync(receipt.Id, cancellationToken);
 
         return await GetDtoAsync(userId, receipt.Id, cancellationToken);
     }
@@ -75,6 +72,7 @@ public sealed class ReceiptService : IReceiptService
     public async Task<ReceiptDto> AddItemAsync(Guid userId, Guid receiptId, CreateReceiptItemRequest request, CancellationToken cancellationToken = default)
     {
         var receipt = await GetReceiptAsync(userId, receiptId, cancellationToken);
+        await EnsureNotConfirmedAsync(receiptId, cancellationToken);
 
         if (string.IsNullOrWhiteSpace(request.Name))
         {
@@ -122,6 +120,7 @@ public sealed class ReceiptService : IReceiptService
     public async Task<ReceiptDto> UpdateItemAsync(Guid userId, Guid receiptId, Guid itemId, UpdateReceiptItemRequest request, CancellationToken cancellationToken = default)
     {
         var receipt = await GetReceiptAsync(userId, receiptId, cancellationToken);
+        await EnsureNotConfirmedAsync(receiptId, cancellationToken);
 
         var item = receipt.Items.FirstOrDefault(i => i.Id == itemId)
             ?? throw new NotFoundException("Позиция не найдена.");
@@ -177,39 +176,53 @@ public sealed class ReceiptService : IReceiptService
         return await GetDtoAsync(userId, receipt.Id, cancellationToken);
     }
 
-    private async Task AnalyzeAsync(Receipt receipt, string imagePath, CancellationToken cancellationToken)
+    public async Task<ReceiptDto> ConfirmAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
     {
-        try
+        var receipt = await GetReceiptAsync(userId, id, cancellationToken);
+
+        if (receipt.Items.Count == 0)
         {
-            var result = await _analyzer.AnalyzeAsync(imagePath, cancellationToken);
-
-            receipt.MerchantName = result.MerchantName;
-            receipt.PurchaseDate = result.PurchaseDate;
-            receipt.TotalAmount = result.TotalAmount;
-            receipt.RawOcrText = result.RawOcrText;
-            receipt.AiRawResponse = result.RawResponse;
-            receipt.Confidence = result.Confidence;
-
-            foreach (var item in result.SafeItems)
-            {
-                var entity = new ReceiptItem
-                {
-                    ReceiptId = receipt.Id,
-                    Name = item.Name,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice,
-                    TotalPrice = item.TotalPrice,
-                    Confidence = item.Confidence
-                };
-
-                _db.ReceiptItems.Add(entity);
-            }
-
-            receipt.Status = result.SafeItems.Count > 0 ? ProcessingStatus.Processed : ProcessingStatus.NeedsReview;
+            throw new ValidationException("Нет позиций для проведения.");
         }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+
+        if (await _db.Transactions.AnyAsync(t => t.ReceiptId == receipt.Id, cancellationToken))
         {
-            receipt.Status = ProcessingStatus.Failed;
+            throw new ValidationException("Чек уже проведён в операции.");
+        }
+
+        var account = await _db.Accounts
+            .FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken)
+            ?? throw new NotFoundException("У пользователя нет счёта.");
+
+        var occurredAt = receipt.PurchaseDate ?? receipt.CreatedAt;
+
+        foreach (var item in receipt.Items)
+        {
+            _db.Transactions.Add(new Transaction
+            {
+                UserId = userId,
+                AccountId = account.Id,
+                CategoryId = item.CategoryId,
+                Type = TransactionType.Expense,
+                Amount = item.TotalPrice,
+                Currency = account.Currency,
+                OccurredAt = occurredAt,
+                Source = TransactionSource.Receipt,
+                Comment = item.Name,
+                ReceiptId = receipt.Id
+            });
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return await GetDtoAsync(userId, receipt.Id, cancellationToken);
+    }
+
+    private async Task EnsureNotConfirmedAsync(Guid receiptId, CancellationToken cancellationToken)
+    {
+        if (await _db.Transactions.AnyAsync(t => t.ReceiptId == receiptId, cancellationToken))
+        {
+            throw new ValidationException("Чек уже проведён, правки запрещены.");
         }
     }
 
@@ -261,7 +274,8 @@ public sealed class ReceiptService : IReceiptService
                         i.CategoryId,
                         i.Category != null ? i.Category.Name : null,
                         i.Confidence))
-                    .ToList()))
+                    .ToList(),
+                _db.Transactions.Any(t => t.ReceiptId == r.Id)))
             .FirstOrDefaultAsync(cancellationToken);
 
         return dto ?? throw new NotFoundException("Чек не найден.");

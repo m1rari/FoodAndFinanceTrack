@@ -122,6 +122,9 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+
+  confirmReceipt: (id: string) =>
+    request<ReceiptDto>(`/api/receipts/${id}/confirm`, { method: 'POST' }),
 }
 
 export async function fetchReceiptImage(imageUrl: string): Promise<Blob> {

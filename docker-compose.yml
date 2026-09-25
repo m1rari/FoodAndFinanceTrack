@@ -34,6 +34,8 @@ services:
       - Telegram__BotToken=${BOT_TOKEN}
       - Telegram__InitDataTtl=${INIT_DATA_TTL:-24:00:00}
       - OpenCodeGo__ApiKey=${OPENCODE_GO_KEY}
+      - OpenCodeGo__Model=${AI_MODEL:-deepseek-v4-flash-vision-exp}
+      - Ai__ConfidenceThreshold=${AI_CONFIDENCE_THRESHOLD:-0.6}
       - Storage__RootPath=/app/uploads
     volumes:
       - uploads:/app/uploads

@@ -82,6 +82,7 @@ export interface ReceiptDto {
   createdAt: string
   imageUrl: string
   items: ReceiptItemDto[]
+  confirmed: boolean
 }
 
 export interface CreateReceiptItemRequest {

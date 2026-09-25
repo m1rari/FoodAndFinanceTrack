@@ -1,5 +1,9 @@
 namespace FinanceFoodTracker.Application.Receipts.Analysis;
 
+public sealed record ReceiptAnalysisRequest(
+    string ImagePath,
+    IReadOnlyList<string> Categories);
+
 public sealed record ReceiptAnalysisItem(
     string Name,
     decimal Quantity,

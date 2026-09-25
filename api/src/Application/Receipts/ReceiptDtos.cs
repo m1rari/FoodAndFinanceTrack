@@ -19,7 +19,8 @@ public sealed record ReceiptDto(
     decimal? Confidence,
     DateTimeOffset CreatedAt,
     string ImageUrl,
-    IReadOnlyList<ReceiptItemDto> Items);
+    IReadOnlyList<ReceiptItemDto> Items,
+    bool Confirmed);
 
 public sealed record ReceiptImageDto(byte[] Content, string ContentType);
 

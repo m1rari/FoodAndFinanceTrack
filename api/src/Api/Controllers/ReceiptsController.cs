@@ -60,4 +60,8 @@ public sealed class ReceiptsController : ControllerBase
     [HttpPatch("{id:guid}/items/{itemId:guid}")]
     public async Task<ActionResult<ReceiptDto>> UpdateItem(Guid id, Guid itemId, [FromBody] UpdateReceiptItemRequest request, CancellationToken cancellationToken)
         => Ok(await _receipts.UpdateItemAsync(_currentUser.UserId, id, itemId, request, cancellationToken));
+
+    [HttpPost("{id:guid}/confirm")]
+    public async Task<ActionResult<ReceiptDto>> Confirm(Guid id, CancellationToken cancellationToken)
+        => Ok(await _receipts.ConfirmAsync(_currentUser.UserId, id, cancellationToken));
 }

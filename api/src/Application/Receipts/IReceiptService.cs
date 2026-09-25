@@ -11,4 +11,6 @@ public interface IReceiptService
     Task<ReceiptDto> AddItemAsync(Guid userId, Guid receiptId, CreateReceiptItemRequest request, CancellationToken cancellationToken = default);
 
     Task<ReceiptDto> UpdateItemAsync(Guid userId, Guid receiptId, Guid itemId, UpdateReceiptItemRequest request, CancellationToken cancellationToken = default);
+
+    Task<ReceiptDto> ConfirmAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
 }

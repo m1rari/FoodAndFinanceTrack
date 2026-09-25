@@ -20,11 +20,13 @@ function ReceiptItemCard({
   receiptId,
   item,
   categories,
+  disabled,
   onUpdated,
 }: {
   receiptId: string
   item: ReceiptItemDto
   categories: CategoryDto[]
+  disabled: boolean
   onUpdated: (receipt: ReceiptDto) => void
 }) {
   const [name, setName] = useState(item.name)
@@ -33,6 +35,7 @@ function ReceiptItemCard({
   const [categoryId, setCategoryId] = useState(item.categoryId ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const lowConfidence = item.confidence !== null && item.confidence < 0.6
 
   async function handleSave(event: FormEvent) {
     event.preventDefault()
@@ -73,7 +76,7 @@ function ReceiptItemCard({
     <form className="item-card" onSubmit={handleSave}>
       <label className="field">
         <span>Название</span>
-        <input value={name} onChange={(event) => setName(event.target.value)} />
+        <input value={name} disabled={disabled} onChange={(event) => setName(event.target.value)} />
       </label>
 
       <div className="item-grid">
@@ -82,6 +85,7 @@ function ReceiptItemCard({
           <input
             inputMode="decimal"
             value={quantity}
+            disabled={disabled}
             onChange={(event) => setQuantity(event.target.value)}
           />
         </label>
@@ -90,6 +94,7 @@ function ReceiptItemCard({
           <input
             inputMode="decimal"
             value={unitPrice}
+            disabled={disabled}
             onChange={(event) => setUnitPrice(event.target.value)}
           />
         </label>
@@ -97,7 +102,11 @@ function ReceiptItemCard({
 
       <label className="field">
         <span>Категория</span>
-        <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+        <select
+          value={categoryId}
+          disabled={disabled}
+          onChange={(event) => setCategoryId(event.target.value)}
+        >
           <option value="">Без категории</option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
@@ -108,10 +117,15 @@ function ReceiptItemCard({
       </label>
 
       <div className="item-footer">
-        <span className="muted small">Сумма: {formatMoney(item.totalPrice)}</span>
-        <button type="submit" className="ghost small-button" disabled={saving}>
-          {saving ? 'Сохранение…' : 'Сохранить'}
-        </button>
+        <span className="muted small">
+          Сумма: {formatMoney(item.totalPrice)}
+          {lowConfidence && <span className="warn small"> · низкая уверенность</span>}
+        </span>
+        {!disabled && (
+          <button type="submit" className="ghost small-button" disabled={saving}>
+            {saving ? 'Сохранение…' : 'Сохранить'}
+          </button>
+        )}
       </div>
 
       {error && <p className="error small">{error}</p>}
@@ -126,6 +140,7 @@ export default function ReceiptScreen() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [categories, setCategories] = useState<CategoryDto[]>([])
   const [uploading, setUploading] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
@@ -180,6 +195,31 @@ export default function ReceiptScreen() {
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl)
       }
+    }
+  }, [receipt])
+
+  useEffect(() => {
+    if (!receipt || receipt.status !== 'Pending') {
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setInterval(() => {
+      api
+        .receipt(receipt.id)
+        .then((data) => {
+          if (!cancelled) {
+            setReceipt(data)
+          }
+        })
+        .catch(() => {
+          // временная ошибка — продолжаем опрашивать
+        })
+    }, 3000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
     }
   }, [receipt])
 
@@ -255,6 +295,24 @@ export default function ReceiptScreen() {
     }
   }
 
+  async function handleConfirm() {
+    if (!receipt) {
+      return
+    }
+
+    setError(null)
+    setConfirming(true)
+
+    try {
+      const confirmed = await api.confirmReceipt(receipt.id)
+      setReceipt(confirmed)
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось провести чек в операции')
+    } finally {
+      setConfirming(false)
+    }
+  }
+
   if (!receipt) {
     return (
       <section className="screen">
@@ -300,7 +358,10 @@ export default function ReceiptScreen() {
         </button>
       </header>
 
-      <p className="status">{STATUS_LABELS[receipt.status] ?? receipt.status}</p>
+      <div className="status-row">
+        <p className="status">{STATUS_LABELS[receipt.status] ?? receipt.status}</p>
+        {receipt.confirmed && <p className="status confirmed">Проведён в операции</p>}
+      </div>
 
       {previewUrl && <img className="receipt-image" src={previewUrl} alt="Фото чека" />}
 
@@ -311,9 +372,13 @@ export default function ReceiptScreen() {
 
       {error && <p className="error">{error}</p>}
 
+      {receipt.status === 'Pending' && <p className="muted">Идёт анализ чека, обновится автоматически…</p>}
+
       <h2 className="section-title">Позиции</h2>
 
-      {receipt.items.length === 0 && <p className="muted">Позиций пока нет — добавьте их вручную.</p>}
+      {receipt.status !== 'Pending' && receipt.items.length === 0 && (
+        <p className="muted">Позиций пока нет — добавьте их вручную.</p>
+      )}
 
       <div className="items">
         {receipt.items.map((item) => (
@@ -322,12 +387,19 @@ export default function ReceiptScreen() {
             receiptId={receipt.id}
             item={item}
             categories={categories}
+            disabled={receipt.confirmed}
             onUpdated={setReceipt}
           />
         ))}
       </div>
 
-      {adding ? (
+      {!receipt.confirmed && receipt.items.length > 0 && receipt.status !== 'Pending' && (
+        <button className="primary" disabled={confirming} onClick={handleConfirm}>
+          {confirming ? 'Проведение…' : 'Провести в операции'}
+        </button>
+      )}
+
+      {!receipt.confirmed && receipt.status !== 'Pending' && (adding ? (
         <form className="item-card" onSubmit={handleAddItem}>
           <label className="field">
             <span>Название</span>
@@ -379,7 +451,7 @@ export default function ReceiptScreen() {
         <button className="ghost" onClick={() => setAdding(true)}>
           + Добавить позицию
         </button>
-      )}
+      ))}
     </section>
   )
 }

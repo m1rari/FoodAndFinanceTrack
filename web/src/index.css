@@ -301,6 +301,13 @@ button:disabled {
   color: var(--link);
 }
 
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .status {
   align-self: flex-start;
   margin: 0;
@@ -309,6 +316,16 @@ button:disabled {
   background: var(--secondary-bg);
   color: var(--hint);
   font-size: 13px;
+  font-weight: 600;
+}
+
+.status.confirmed {
+  background: var(--button);
+  color: var(--button-text);
+}
+
+.warn {
+  color: #d97706;
   font-weight: 600;
 }
 

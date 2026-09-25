@@ -12,9 +12,12 @@ public sealed class StubReceiptAnalyzer : IReceiptAnalyzer
         _logger = logger;
     }
 
-    public Task<ReceiptAnalysisResult> AnalyzeAsync(string imagePath, CancellationToken cancellationToken = default)
+    public Task<ReceiptAnalysisResult> AnalyzeAsync(ReceiptAnalysisRequest request, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Заглушка IReceiptAnalyzer: файл {ImagePath} требует ручного разбора.", imagePath);
+        _logger.LogInformation(
+            "AI-провайдер не настроен: чек {ImagePath} требует ручного разбора.",
+            request.ImagePath);
+
         return Task.FromResult(new ReceiptAnalysisResult());
     }
 }

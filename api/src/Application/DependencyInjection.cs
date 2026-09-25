@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IReceiptService, ReceiptService>();
+        services.AddScoped<IReceiptProcessor, ReceiptProcessor>();
         services.AddScoped<IReportService, ReportService>();
 
         return services;
