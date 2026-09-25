@@ -1,0 +1,27 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+
+# Node / frontend
+web/node_modules/
+web/dist/
+web/.vite/
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+
+# uploads (оригиналы изображений)
+uploads/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store

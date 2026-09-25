@@ -1,0 +1,71 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+    compress: "true"
+
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: proxy/Dockerfile
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    mem_limit: 128m
+    cpus: 0.5
+    logging: *default-logging
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__Default=Host=db;Database=finance;Username=app;Password=${DB_PASSWORD}
+      - Telegram__BotToken=${BOT_TOKEN}
+      - Telegram__InitDataTtl=${INIT_DATA_TTL:-24:00:00}
+      - OpenCodeGo__ApiKey=${OPENCODE_GO_KEY}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      - db
+    mem_limit: 512m
+    cpus: 1.0
+    logging: *default-logging
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=finance
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - max_connections=50
+      - -c
+      - effective_cache_size=256MB
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    mem_limit: 512m
+    cpus: 1.0
+    logging: *default-logging
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  uploads:
+  caddy_data:
+  caddy_config:

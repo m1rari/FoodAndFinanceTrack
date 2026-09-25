@@ -1,0 +1,95 @@
+import type {
+  CategoryDto,
+  CreateTransactionRequest,
+  ReportSummaryDto,
+  TransactionDto,
+  UserDto,
+} from './types'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
+let initData = ''
+
+export function setInitData(value: string) {
+  initData = value
+}
+
+export class ApiError extends Error {
+  status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers)
+
+  if (initData) {
+    headers.set('X-Telegram-Init-Data', initData)
+  }
+
+  if (typeof options.body === 'string') {
+    headers.set('Content-Type', 'application/json')
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers })
+
+  if (!response.ok) {
+    let message = `Ошибка запроса (${response.status})`
+
+    try {
+      const problem = (await response.json()) as Record<string, unknown>
+      const detail = problem.detail ?? problem.error ?? problem.title
+      if (typeof detail === 'string' && detail.length > 0) {
+        message = detail
+      }
+    } catch {
+      // тело ответа не JSON — оставляем общее сообщение
+    }
+
+    throw new ApiError(response.status, message)
+  }
+
+  if (response.status === 204) {
+    return undefined as T
+  }
+
+  return (await response.json()) as T
+}
+
+function buildQuery(params: Record<string, string | undefined>): string {
+  const search = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value) {
+      search.set(key, value)
+    }
+  }
+
+  const query = search.toString()
+  return query ? `?${query}` : ''
+}
+
+export const api = {
+  auth: (value: string) =>
+    request<UserDto>('/api/auth/telegram', {
+      method: 'POST',
+      body: JSON.stringify({ initData: value }),
+    }),
+
+  transactions: (params: { from?: string; to?: string } = {}) =>
+    request<TransactionDto[]>(`/api/transactions${buildQuery(params)}`),
+
+  createTransaction: (body: CreateTransactionRequest) =>
+    request<TransactionDto>('/api/transactions', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  categories: (type?: string) => request<CategoryDto[]>(`/api/categories${buildQuery({ type })}`),
+
+  reportSummary: (from: string, to: string) =>
+    request<ReportSummaryDto>(`/api/reports/summary${buildQuery({ from, to })}`),
+}

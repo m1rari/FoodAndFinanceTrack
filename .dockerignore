@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/bin
+**/obj
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+docs
+README.md
+**/*.user
