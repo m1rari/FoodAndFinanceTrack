@@ -1,0 +1,7 @@
+@host = http://localhost:5177
+
+# Требуется валидный initData (см. заголовок X-Telegram-Init-Data)
+GET {{host}}/api/categories
+Accept: application/json
+
+###
