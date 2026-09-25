@@ -34,6 +34,7 @@ services:
       - Telegram__BotToken=${BOT_TOKEN}
       - Telegram__InitDataTtl=${INIT_DATA_TTL:-24:00:00}
       - OpenCodeGo__ApiKey=${OPENCODE_GO_KEY}
+      - Storage__RootPath=/app/uploads
     volumes:
       - uploads:/app/uploads
     depends_on:

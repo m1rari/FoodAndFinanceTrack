@@ -1,4 +1,5 @@
 using FinanceFoodTracker.Application.Categories;
+using FinanceFoodTracker.Application.Receipts;
 using FinanceFoodTracker.Application.Reports;
 using FinanceFoodTracker.Application.Transactions;
 using FinanceFoodTracker.Application.Users;
@@ -13,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ITransactionService, TransactionService>();
+        services.AddScoped<IReceiptService, ReceiptService>();
         services.AddScoped<IReportService, ReportService>();
 
         return services;

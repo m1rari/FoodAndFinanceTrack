@@ -5,8 +5,9 @@ import { initTelegram } from './telegram/init'
 import TransactionsScreen from './screens/TransactionsScreen'
 import TransactionFormScreen from './screens/TransactionFormScreen'
 import DashboardScreen from './screens/DashboardScreen'
+import ReceiptScreen from './screens/ReceiptScreen'
 
-type Tab = 'transactions' | 'dashboard' | 'form'
+type Tab = 'transactions' | 'dashboard' | 'form' | 'receipt'
 
 export default function App() {
   const context = useMemo(() => initTelegram(), [])
@@ -73,6 +74,7 @@ export default function App() {
         {tab === 'transactions' && (
           <TransactionsScreen refreshKey={refreshKey} onAdd={openAdd} onEdit={openEdit} />
         )}
+        {tab === 'receipt' && <ReceiptScreen />}
         {tab === 'dashboard' && <DashboardScreen refreshKey={refreshKey} />}
         {tab === 'form' && (
           <TransactionFormScreen transaction={editing} onDone={handleSaved} onCancel={closeForm} />
@@ -91,6 +93,15 @@ export default function App() {
         </button>
         <button className={tab === 'form' && !editing ? 'tab active' : 'tab'} onClick={openAdd}>
           Добавить
+        </button>
+        <button
+          className={tab === 'receipt' ? 'tab active' : 'tab'}
+          onClick={() => {
+            setEditing(null)
+            setTab('receipt')
+          }}
+        >
+          Чек
         </button>
         <button
           className={tab === 'dashboard' ? 'tab active' : 'tab'}

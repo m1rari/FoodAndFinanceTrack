@@ -1,8 +1,11 @@
 import type {
   CategoryDto,
+  CreateReceiptItemRequest,
   CreateTransactionRequest,
+  ReceiptDto,
   ReportSummaryDto,
   TransactionDto,
+  UpdateReceiptItemRequest,
   UpdateTransactionRequest,
   UserDto,
 } from './types'
@@ -99,4 +102,39 @@ export const api = {
 
   reportSummary: (from: string, to: string) =>
     request<ReportSummaryDto>(`/api/reports/summary${buildQuery({ from, to })}`),
+
+  uploadReceipt: (file: Blob, fileName: string) => {
+    const form = new FormData()
+    form.append('file', file, fileName)
+    return request<ReceiptDto>('/api/receipts', { method: 'POST', body: form })
+  },
+
+  receipt: (id: string) => request<ReceiptDto>(`/api/receipts/${id}`),
+
+  addReceiptItem: (receiptId: string, body: CreateReceiptItemRequest) =>
+    request<ReceiptDto>(`/api/receipts/${receiptId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateReceiptItem: (receiptId: string, itemId: string, body: UpdateReceiptItemRequest) =>
+    request<ReceiptDto>(`/api/receipts/${receiptId}/items/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+}
+
+export async function fetchReceiptImage(imageUrl: string): Promise<Blob> {
+  const headers = new Headers()
+  if (initData) {
+    headers.set('X-Telegram-Init-Data', initData)
+  }
+
+  const response = await fetch(`${API_BASE}${imageUrl}`, { headers })
+
+  if (!response.ok) {
+    throw new ApiError(response.status, 'Не удалось загрузить изображение чека')
+  }
+
+  return response.blob()
 }

@@ -60,3 +60,43 @@ export interface UpdateTransactionRequest {
   comment?: string | null
   clearComment?: boolean
 }
+
+export interface ReceiptItemDto {
+  id: string
+  name: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  categoryId: string | null
+  categoryName: string | null
+  confidence: number | null
+}
+
+export interface ReceiptDto {
+  id: string
+  merchantName: string | null
+  purchaseDate: string | null
+  totalAmount: number | null
+  status: string
+  confidence: number | null
+  createdAt: string
+  imageUrl: string
+  items: ReceiptItemDto[]
+}
+
+export interface CreateReceiptItemRequest {
+  name: string
+  quantity: number
+  unitPrice: number
+  totalPrice?: number | null
+  categoryId?: string | null
+}
+
+export interface UpdateReceiptItemRequest {
+  name?: string | null
+  quantity?: number | null
+  unitPrice?: number | null
+  totalPrice?: number | null
+  categoryId?: string | null
+  clearCategory?: boolean
+}
