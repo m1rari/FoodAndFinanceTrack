@@ -24,35 +24,49 @@ public sealed class TelegramBotClient : ITelegramBot
 
     public async Task SendMessageAsync(long chatId, string text, CancellationToken cancellationToken = default)
     {
-        var response = await _http.PostAsJsonAsync(
-            "sendMessage",
-            new { chat_id = chatId, text, disable_web_page_preview = true },
-            SerializerOptions,
-            cancellationToken);
+        try
+        {
+            var response = await _http.PostAsJsonAsync(
+                "sendMessage",
+                new { chat_id = chatId, text, disable_web_page_preview = true },
+                SerializerOptions,
+                cancellationToken);
 
-        await EnsureOkAsync(response, "sendMessage", cancellationToken);
+            await EnsureOkAsync(response, "sendMessage", cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            throw new InvalidOperationException("Не удалось обратиться к Telegram API.");
+        }
     }
 
     public async Task<byte[]?> DownloadFileAsync(string fileId, CancellationToken cancellationToken = default)
     {
-        var response = await _http.GetAsync($"getFile?file_id={Uri.EscapeDataString(fileId)}", cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            _logger.LogWarning("Telegram getFile вернул {Status}", (int)response.StatusCode);
-            return null;
+            var response = await _http.GetAsync($"getFile?file_id={Uri.EscapeDataString(fileId)}", cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Telegram getFile вернул {Status}", (int)response.StatusCode);
+                return null;
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<TelegramFileResponse>(SerializerOptions, cancellationToken);
+            var filePath = payload?.Result?.FilePath;
+
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return null;
+            }
+
+            var fileUrl = $"https://api.telegram.org/file/bot{_options.BotToken}/{filePath}";
+            return await _http.GetByteArrayAsync(fileUrl, cancellationToken);
         }
-
-        var payload = await response.Content.ReadFromJsonAsync<TelegramFileResponse>(SerializerOptions, cancellationToken);
-        var filePath = payload?.Result?.FilePath;
-
-        if (string.IsNullOrWhiteSpace(filePath))
+        catch (HttpRequestException)
         {
-            return null;
+            throw new InvalidOperationException("Не удалось обратиться к Telegram API.");
         }
-
-        var fileUrl = $"https://api.telegram.org/file/bot{_options.BotToken}/{filePath}";
-        return await _http.GetByteArrayAsync(fileUrl, cancellationToken);
     }
 
     public async Task SetWebhookAsync(string url, string? secretToken, CancellationToken cancellationToken = default)
@@ -61,8 +75,15 @@ public sealed class TelegramBotClient : ITelegramBot
             ? new { url, allowed_updates = new[] { "message" } }
             : new { url, secret_token = secretToken, allowed_updates = new[] { "message" } };
 
-        var response = await _http.PostAsJsonAsync("setWebhook", body, SerializerOptions, cancellationToken);
-        await EnsureOkAsync(response, "setWebhook", cancellationToken);
+        try
+        {
+            var response = await _http.PostAsJsonAsync("setWebhook", body, SerializerOptions, cancellationToken);
+            await EnsureOkAsync(response, "setWebhook", cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            throw new InvalidOperationException("Не удалось обратиться к Telegram API.");
+        }
     }
 
     private static async Task EnsureOkAsync(HttpResponseMessage response, string method, CancellationToken cancellationToken)
