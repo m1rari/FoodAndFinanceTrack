@@ -13,6 +13,12 @@ public class FoodLog : Entity
     public decimal? ProteinG { get; set; }
     public decimal? FatG { get; set; }
     public decimal? CarbsG { get; set; }
+    public decimal? ProteinMinG { get; set; }
+    public decimal? ProteinMaxG { get; set; }
+    public decimal? FatMinG { get; set; }
+    public decimal? FatMaxG { get; set; }
+    public decimal? CarbsMinG { get; set; }
+    public decimal? CarbsMaxG { get; set; }
     public DateTimeOffset EatenAt { get; set; } = DateTimeOffset.UtcNow;
     public string? AiRawResponse { get; set; }
     public ProcessingStatus Status { get; set; } = ProcessingStatus.Pending;

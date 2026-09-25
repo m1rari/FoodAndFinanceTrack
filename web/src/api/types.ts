@@ -97,6 +97,39 @@ export interface ReceiptSummaryDto {
   createdAt: string
 }
 
+export interface FoodLogDto {
+  id: string
+  dishName: string | null
+  caloriesMin: number | null
+  caloriesMax: number | null
+  proteinMinG: number | null
+  proteinMaxG: number | null
+  fatMinG: number | null
+  fatMaxG: number | null
+  carbsMinG: number | null
+  carbsMaxG: number | null
+  proteinG: number | null
+  fatG: number | null
+  carbsG: number | null
+  status: string
+  eatenAt: string
+  imageUrl: string
+  createdAt: string
+}
+
+export interface UpdateFoodLogRequest {
+  dishName?: string | null
+  caloriesMin?: number | null
+  caloriesMax?: number | null
+  proteinMinG?: number | null
+  proteinMaxG?: number | null
+  fatMinG?: number | null
+  fatMaxG?: number | null
+  carbsMinG?: number | null
+  carbsMaxG?: number | null
+  eatenAt?: string | null
+}
+
 export interface CreateReceiptItemRequest {
   name: string
   quantity: number

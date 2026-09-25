@@ -8,8 +8,10 @@ import AddScreen from './screens/AddScreen'
 import TransactionFormScreen from './screens/TransactionFormScreen'
 import ReportScreen from './screens/ReportScreen'
 import PurchaseScreen from './screens/PurchaseScreen'
+import FoodScreen from './screens/FoodScreen'
+import FoodDetailScreen from './screens/FoodDetailScreen'
 
-type Tab = 'operations' | 'add' | 'reports'
+type Tab = 'operations' | 'add' | 'food' | 'reports'
 
 const EDITABLE_TAGS = ['INPUT', 'SELECT', 'TEXTAREA']
 
@@ -24,6 +26,7 @@ export default function App() {
   const [editing, setEditing] = useState<TransactionDto | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
+  const [foodId, setFoodId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -71,6 +74,7 @@ export default function App() {
     setEditing(null)
     setManualOpen(false)
     setPurchaseId(null)
+    setFoodId(null)
   }
 
   function handleSaved() {
@@ -80,7 +84,7 @@ export default function App() {
     setTab('operations')
   }
 
-  const overlayOpen = manualOpen || editing !== null || purchaseId !== null
+  const overlayOpen = manualOpen || editing !== null || purchaseId !== null || foodId !== null
 
   return (
     <div className="app">
@@ -98,6 +102,16 @@ export default function App() {
             {tab === 'add' && (
               <AddScreen onManual={() => setManualOpen(true)} onUploaded={(id) => setPurchaseId(id)} />
             )}
+            {tab === 'food' && (
+              <FoodScreen
+                refreshKey={refreshKey}
+                onOpen={(id) => setFoodId(id)}
+                onUploaded={(id) => {
+                  setRefreshKey((value) => value + 1)
+                  setFoodId(id)
+                }}
+              />
+            )}
             {tab === 'reports' && <ReportScreen refreshKey={refreshKey} />}
           </>
         )}
@@ -111,7 +125,16 @@ export default function App() {
           />
         )}
 
-        {overlayOpen && purchaseId === null && (manualOpen || editing) && (
+        {overlayOpen && purchaseId === null && foodId !== null && (
+          <FoodDetailScreen
+            key={foodId}
+            foodId={foodId}
+            onBack={closeOverlays}
+            onChanged={() => setRefreshKey((value) => value + 1)}
+          />
+        )}
+
+        {overlayOpen && purchaseId === null && foodId === null && (manualOpen || editing) && (
           <TransactionFormScreen
             transaction={editing}
             onDone={handleSaved}
@@ -130,6 +153,9 @@ export default function App() {
           </button>
           <button className={tab === 'add' ? 'tab active' : 'tab'} onClick={() => setTab('add')}>
             Добавить
+          </button>
+          <button className={tab === 'food' ? 'tab active' : 'tab'} onClick={() => setTab('food')}>
+            Питание
           </button>
           <button className={tab === 'reports' ? 'tab active' : 'tab'} onClick={() => setTab('reports')}>
             Отчёты

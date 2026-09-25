@@ -2,9 +2,11 @@ import type {
   CategoryDto,
   CreateReceiptItemRequest,
   CreateTransactionRequest,
+  FoodLogDto,
   ReceiptDto,
   ReceiptSummaryDto,
   ReportSummaryDto,
+  UpdateFoodLogRequest,
   TransactionDto,
   UpdateReceiptItemRequest,
   UpdateTransactionRequest,
@@ -136,6 +138,37 @@ export const api = {
 
   linkReceipt: (id: string, transactionId: string) =>
     request<ReceiptDto>(`/api/receipts/${id}/link/${transactionId}`, { method: 'POST' }),
+
+  foodLogs: (from: string, to: string) =>
+    request<FoodLogDto[]>(`/api/food-logs${buildQuery({ from, to })}`),
+
+  foodLog: (id: string) => request<FoodLogDto>(`/api/food-logs/${id}`),
+
+  uploadFoodLog: (file: Blob, fileName: string) => {
+    const form = new FormData()
+    form.append('file', file, fileName)
+    return request<FoodLogDto>('/api/food-logs', { method: 'POST', body: form })
+  },
+
+  updateFoodLog: (id: string, body: UpdateFoodLogRequest) =>
+    request<FoodLogDto>(`/api/food-logs/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  deleteFoodLog: (id: string) => request<void>(`/api/food-logs/${id}`, { method: 'DELETE' }),
+}
+
+export async function fetchFoodImage(imageUrl: string): Promise<Blob> {
+  const headers = new Headers()
+  if (initData) {
+    headers.set('X-Telegram-Init-Data', initData)
+  }
+
+  const response = await fetch(`${API_BASE}${imageUrl}`, { headers })
+
+  if (!response.ok) {
+    throw new ApiError(response.status, 'Не удалось загрузить изображение блюда')
+  }
+
+  return response.blob()
 }
 
 export async function fetchReceiptImage(imageUrl: string): Promise<Blob> {

@@ -1,4 +1,5 @@
 using FinanceFoodTracker.Application.Common.Exceptions;
+using FinanceFoodTracker.Application.Common.Images;
 using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.Transactions;
 using FinanceFoodTracker.Domain.Entities;
@@ -9,10 +10,6 @@ namespace FinanceFoodTracker.Application.Receipts;
 
 public sealed class ReceiptService : IReceiptService
 {
-    private const string Jpeg = "image/jpeg";
-    private const string Png = "image/png";
-    private const string Webp = "image/webp";
-
     private readonly IApplicationDbContext _db;
     private readonly IFileStorage _fileStorage;
     private readonly IReceiptProcessingQueue _queue;
@@ -31,7 +28,7 @@ public sealed class ReceiptService : IReceiptService
             throw new ValidationException("Файл пуст.");
         }
 
-        var detected = DetectImage(content)
+        var detected = ImageContent.Detect(content)
             ?? throw new ValidationException("Поддерживаются только изображения JPEG, PNG и WebP.");
 
         var imagePath = await _fileStorage.SaveAsync(content, detected.Extension, cancellationToken);
@@ -94,7 +91,7 @@ public sealed class ReceiptService : IReceiptService
         }
 
         var content = await _fileStorage.ReadAsync(receipt.ImagePath, cancellationToken);
-        return new ReceiptImageDto(content, ContentTypeFor(receipt.ImagePath));
+        return new ReceiptImageDto(content, ImageContent.ContentTypeFor(receipt.ImagePath));
     }
 
     public async Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
@@ -416,34 +413,4 @@ public sealed class ReceiptService : IReceiptService
         }
     }
 
-    private static (string ContentType, string Extension)? DetectImage(byte[] content)
-    {
-        if (content.Length >= 3 && content[0] == 0xFF && content[1] == 0xD8 && content[2] == 0xFF)
-        {
-            return (Jpeg, ".jpg");
-        }
-
-        if (content.Length >= 8
-            && content[0] == 0x89 && content[1] == 0x50 && content[2] == 0x4E && content[3] == 0x47
-            && content[4] == 0x0D && content[5] == 0x0A && content[6] == 0x1A && content[7] == 0x0A)
-        {
-            return (Png, ".png");
-        }
-
-        if (content.Length >= 12
-            && content[0] == (byte)'R' && content[1] == (byte)'I' && content[2] == (byte)'F' && content[3] == (byte)'F'
-            && content[8] == (byte)'W' && content[9] == (byte)'E' && content[10] == (byte)'B' && content[11] == (byte)'P')
-        {
-            return (Webp, ".webp");
-        }
-
-        return null;
-    }
-
-    private static string ContentTypeFor(string path) => Path.GetExtension(path).ToLowerInvariant() switch
-    {
-        ".png" => Png,
-        ".webp" => Webp,
-        _ => Jpeg
-    };
 }

@@ -41,6 +41,32 @@ export function customPeriod(fromDate: string, toDate: string): Period {
   }
 }
 
+export function dayRange(date: Date): { from: string; to: string } {
+  return { from: startOfDay(date).toISOString(), to: endOfDay(date).toISOString() }
+}
+
+export function addDays(date: Date, days: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+export function formatDayTitle(date: Date): string {
+  const today = startOfDay(new Date())
+  const value = startOfDay(date)
+  const diff = Math.round((value.getTime() - today.getTime()) / 86400000)
+
+  if (diff === 0) {
+    return 'Сегодня'
+  }
+
+  if (diff === -1) {
+    return 'Вчера'
+  }
+
+  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', weekday: 'short' }).format(date)
+}
+
 export function dayKey(iso: string): string {
   const date = new Date(iso)
 

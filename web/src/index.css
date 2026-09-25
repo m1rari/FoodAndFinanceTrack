@@ -290,7 +290,7 @@ button:disabled {
   right: 0;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
   background: var(--secondary-bg);
@@ -473,6 +473,28 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.day-switch {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.day-switch-title {
+  text-align: center;
+  font-weight: 600;
+}
+
+.day-switch .ghost {
+  padding: 8px 16px;
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 12px;
 }
 
 .match-card {

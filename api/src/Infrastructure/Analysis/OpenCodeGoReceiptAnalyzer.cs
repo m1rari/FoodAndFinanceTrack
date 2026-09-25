@@ -1,12 +1,7 @@
 using System.Globalization;
-using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
 using FinanceFoodTracker.Application.Common.Interfaces;
-using FinanceFoodTracker.Application.Common.Options;
 using FinanceFoodTracker.Application.Receipts.Analysis;
-using Microsoft.Extensions.Options;
 
 namespace FinanceFoodTracker.Infrastructure.Analysis;
 
@@ -17,34 +12,24 @@ public sealed class OpenCodeGoReceiptAnalyzer : IReceiptAnalyzer
         PropertyNameCaseInsensitive = true
     };
 
-    private readonly HttpClient _http;
+    private readonly OpenCodeGoVisionClient _client;
     private readonly IFileStorage _fileStorage;
-    private readonly OpenCodeGoOptions _options;
 
-    public OpenCodeGoReceiptAnalyzer(HttpClient http, IFileStorage fileStorage, IOptions<OpenCodeGoOptions> options)
+    public OpenCodeGoReceiptAnalyzer(OpenCodeGoVisionClient client, IFileStorage fileStorage)
     {
-        _http = http;
+        _client = client;
         _fileStorage = fileStorage;
-        _options = options.Value;
     }
 
     public async Task<ReceiptAnalysisResult> AnalyzeAsync(ReceiptAnalysisRequest request, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_options.ApiKey))
-        {
-            throw new InvalidOperationException("Ключ OpenCode Go API не настроен.");
-        }
-
-        var imageBytes = await _fileStorage.ReadAsync(request.ImagePath, cancellationToken);
-        var dataUrl = $"data:{ContentTypeFor(request.ImagePath)};base64,{Convert.ToBase64String(imageBytes)}";
-
-        var completion = await CompleteAsync(request, dataUrl, useResponseFormat: true, cancellationToken);
-        var content = completion?.Choices?.FirstOrDefault()?.Message?.Content;
-
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            throw new InvalidOperationException("AI-провайдер вернул пустой ответ.");
-        }
+        var dataUrl = await BuildDataUrlAsync(request.ImagePath, cancellationToken);
+        var content = await _client.CompleteJsonAsync(
+            BuildSystemPrompt(request.Categories),
+            "Распознай чек на изображении и верни JSON по заданной схеме.",
+            dataUrl,
+            request.SessionId,
+            cancellationToken);
 
         var payload = ParsePayload(content);
 
@@ -56,43 +41,17 @@ public sealed class OpenCodeGoReceiptAnalyzer : IReceiptAnalyzer
         return ToResult(payload, SafeJson(content));
     }
 
-    private async Task<ChatCompletionResponse?> CompleteAsync(
-        ReceiptAnalysisRequest request,
-        string dataUrl,
-        bool useResponseFormat,
-        CancellationToken cancellationToken)
+    private async Task<string> BuildDataUrlAsync(string imagePath, CancellationToken cancellationToken)
     {
-        var body = BuildRequest(request, dataUrl, useResponseFormat);
-
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
-        {
-            Content = JsonContent.Create(body, options: SerializerOptions)
-        };
-        httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
-        httpRequest.Headers.TryAddWithoutValidation("x-opencode-session", request.SessionId);
-
-        using var response = await _http.SendAsync(httpRequest, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            if (useResponseFormat && response.StatusCode == HttpStatusCode.BadRequest)
-            {
-                return await CompleteAsync(request, dataUrl, useResponseFormat: false, cancellationToken);
-            }
-
-            var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException(
-                $"AI-провайдер вернул {(int)response.StatusCode}: {Truncate(error, 300)}");
-        }
-
-        return await response.Content.ReadFromJsonAsync<ChatCompletionResponse>(SerializerOptions, cancellationToken);
+        var imageBytes = await _fileStorage.ReadAsync(imagePath, cancellationToken);
+        return $"data:{MediaType(imagePath)};base64,{Convert.ToBase64String(imageBytes)}";
     }
 
-    private ChatCompletionRequest BuildRequest(ReceiptAnalysisRequest request, string dataUrl, bool useResponseFormat)
+    private static string BuildSystemPrompt(IReadOnlyList<string> categories)
     {
-        var categories = request.Categories.Count > 0 ? string.Join(", ", request.Categories) : "нет";
+        var categoryList = categories.Count > 0 ? string.Join(", ", categories) : "нет";
 
-        var system = $$"""
+        return $$"""
             Ты — ассистент для разбора фотографий кассовых чеков.
             Извлеки данные чека и верни СТРОГО один валидный JSON-объект без markdown, пояснений и текста вокруг.
             Схема:
@@ -113,37 +72,9 @@ public sealed class OpenCodeGoReceiptAnalyzer : IReceiptAnalyzer
                 }
               ]
             }
-            Категорию каждой позиции выбери СТРОГО из списка: {{categories}}.
+            Категорию каждой позиции выбери СТРОГО из списка: {{categoryList}}.
             Если ничего не подходит — верни null. Суммы — в валюте чека без символов.
             """;
-
-        var userText = "Распознай чек на изображении и верни JSON по заданной схеме.";
-
-        return new ChatCompletionRequest
-        {
-            Model = _options.Model,
-            RequestFormat = useResponseFormat ? new ResponseFormat() : null,
-            Messages = new List<ChatMessage>
-            {
-                new()
-                {
-                    Role = "system",
-                    Content = new List<ContentPart>
-                    {
-                        new() { Type = "text", Text = system }
-                    }
-                },
-                new()
-                {
-                    Role = "user",
-                    Content = new List<ContentPart>
-                    {
-                        new() { Type = "text", Text = userText },
-                        new() { Type = "image_url", ImageUrl = new ImageUrl { Url = dataUrl } }
-                    }
-                }
-            }
-        };
     }
 
     private static ReceiptPayload? ParsePayload(string content)
@@ -238,13 +169,10 @@ public sealed class OpenCodeGoReceiptAnalyzer : IReceiptAnalyzer
         }
     }
 
-    private static string ContentTypeFor(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    private static string MediaType(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {
         ".png" => "image/png",
         ".webp" => "image/webp",
         _ => "image/jpeg"
     };
-
-    private static string Truncate(string value, int length)
-        => value.Length <= length ? value : value[..length];
 }

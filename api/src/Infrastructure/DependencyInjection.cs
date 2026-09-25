@@ -1,6 +1,8 @@
 using System.Net.Http.Headers;
 using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.Common.Options;
+using FinanceFoodTracker.Application.FoodLogs;
+using FinanceFoodTracker.Application.FoodLogs.Analysis;
 using FinanceFoodTracker.Application.Receipts;
 using FinanceFoodTracker.Application.Receipts.Analysis;
 using FinanceFoodTracker.Infrastructure.Analysis;
@@ -35,7 +37,7 @@ public static class DependencyInjection
         services.Configure<AiOptions>(configuration.GetSection(AiOptions.SectionName));
         services.Configure<OpenCodeGoOptions>(configuration.GetSection(OpenCodeGoOptions.SectionName));
 
-        services.AddHttpClient<OpenCodeGoReceiptAnalyzer>((provider, client) =>
+        services.AddHttpClient<OpenCodeGoVisionClient>((provider, client) =>
         {
             var options = provider.GetRequiredService<IOptions<OpenCodeGoOptions>>().Value;
             var baseUrl = string.IsNullOrWhiteSpace(options.BaseUrl)
@@ -47,7 +49,11 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.UserAgent.ParseAdd("FoodAndFinanceTracker/1.0");
         });
 
+        services.AddScoped<OpenCodeGoReceiptAnalyzer>();
+        services.AddScoped<OpenCodeGoFoodImageAnalyzer>();
         services.AddSingleton<StubReceiptAnalyzer>();
+        services.AddSingleton<StubFoodImageAnalyzer>();
+
         services.AddScoped<IReceiptAnalyzer>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<OpenCodeGoOptions>>().Value;
@@ -56,8 +62,19 @@ public static class DependencyInjection
                 : provider.GetRequiredService<OpenCodeGoReceiptAnalyzer>();
         });
 
+        services.AddScoped<IFoodImageAnalyzer>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<OpenCodeGoOptions>>().Value;
+            return string.IsNullOrWhiteSpace(options.ApiKey)
+                ? provider.GetRequiredService<StubFoodImageAnalyzer>()
+                : provider.GetRequiredService<OpenCodeGoFoodImageAnalyzer>();
+        });
+
         services.AddSingleton<IReceiptProcessingQueue, ReceiptProcessingQueue>();
         services.AddHostedService<ReceiptProcessingWorker>();
+
+        services.AddSingleton<IFoodLogProcessingQueue, FoodLogProcessingQueue>();
+        services.AddHostedService<FoodLogProcessingWorker>();
 
         services.AddHttpClient<ITelegramBot, TelegramBotClient>((provider, client) =>
         {

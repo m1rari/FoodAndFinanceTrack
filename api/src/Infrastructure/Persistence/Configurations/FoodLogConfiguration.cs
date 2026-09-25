@@ -19,6 +19,12 @@ public sealed class FoodLogConfiguration : IEntityTypeConfiguration<FoodLog>
         builder.Property(f => f.ProteinG).HasColumnName("protein_g").HasPrecision(10, 2);
         builder.Property(f => f.FatG).HasColumnName("fat_g").HasPrecision(10, 2);
         builder.Property(f => f.CarbsG).HasColumnName("carbs_g").HasPrecision(10, 2);
+        builder.Property(f => f.ProteinMinG).HasColumnName("protein_min_g").HasPrecision(10, 2);
+        builder.Property(f => f.ProteinMaxG).HasColumnName("protein_max_g").HasPrecision(10, 2);
+        builder.Property(f => f.FatMinG).HasColumnName("fat_min_g").HasPrecision(10, 2);
+        builder.Property(f => f.FatMaxG).HasColumnName("fat_max_g").HasPrecision(10, 2);
+        builder.Property(f => f.CarbsMinG).HasColumnName("carbs_min_g").HasPrecision(10, 2);
+        builder.Property(f => f.CarbsMaxG).HasColumnName("carbs_max_g").HasPrecision(10, 2);
         builder.Property(f => f.EatenAt).HasColumnName("eaten_at").IsRequired();
         builder.Property(f => f.AiRawResponse).HasColumnName("ai_raw_response").HasColumnType("jsonb");
         builder.Property(f => f.Status).HasColumnName("status").HasConversion<int>().IsRequired();
