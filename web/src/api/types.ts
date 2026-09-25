@@ -16,6 +16,7 @@ export interface TransactionDto {
   source: string
   comment: string | null
   receiptId: string | null
+  receiptMerchantName: string | null
   createdAt: string
 }
 

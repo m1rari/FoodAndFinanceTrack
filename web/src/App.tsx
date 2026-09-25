@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { api, ApiError, setInitData } from './api/client'
 import type { TransactionDto, UserDto } from './api/types'
 import { initTelegram } from './telegram/init'
-import TransactionsScreen from './screens/TransactionsScreen'
+import OperationsScreen from './screens/OperationsScreen'
+import AddScreen from './screens/AddScreen'
 import TransactionFormScreen from './screens/TransactionFormScreen'
-import DashboardScreen from './screens/DashboardScreen'
-import ReceiptScreen from './screens/ReceiptScreen'
+import ReportScreen from './screens/ReportScreen'
+import PurchaseScreen from './screens/PurchaseScreen'
 
-type Tab = 'transactions' | 'dashboard' | 'form' | 'receipt'
+type Tab = 'operations' | 'add' | 'reports'
+
+const EDITABLE_TAGS = ['INPUT', 'SELECT', 'TEXTAREA']
 
 export default function App() {
   const context = useMemo(() => initTelegram(), [])
@@ -16,8 +20,10 @@ export default function App() {
     context.initData ? null : 'Откройте приложение через Telegram — не удалось получить initData.',
   )
   const [loading, setLoading] = useState(context.initData.length > 0)
-  const [tab, setTab] = useState<Tab>('transactions')
+  const [tab, setTab] = useState<Tab>('operations')
   const [editing, setEditing] = useState<TransactionDto | null>(null)
+  const [manualOpen, setManualOpen] = useState(false)
+  const [purchaseId, setPurchaseId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -39,6 +45,20 @@ export default function App() {
       .finally(() => setLoading(false))
   }, [context])
 
+  function handleContentClick(event: MouseEvent<HTMLElement>) {
+    const target = event.target as HTMLElement
+
+    if (EDITABLE_TAGS.includes(target.tagName)) {
+      return
+    }
+
+    const active = document.activeElement as HTMLElement | null
+
+    if (active && EDITABLE_TAGS.includes(active.tagName)) {
+      active.blur()
+    }
+  }
+
   if (loading) {
     return <div className="centered">Авторизация…</div>
   }
@@ -47,72 +67,74 @@ export default function App() {
     return <div className="centered error">{error ?? 'Ошибка авторизации'}</div>
   }
 
-  function openAdd() {
+  function closeOverlays() {
     setEditing(null)
-    setTab('form')
-  }
-
-  function openEdit(transaction: TransactionDto) {
-    setEditing(transaction)
-    setTab('form')
-  }
-
-  function closeForm() {
-    setEditing(null)
-    setTab('transactions')
+    setManualOpen(false)
+    setPurchaseId(null)
   }
 
   function handleSaved() {
     setEditing(null)
+    setManualOpen(false)
     setRefreshKey((value) => value + 1)
-    setTab('transactions')
+    setTab('operations')
   }
+
+  const overlayOpen = manualOpen || editing !== null || purchaseId !== null
 
   return (
     <div className="app">
-      <main className="content">
-        {tab === 'transactions' && (
-          <TransactionsScreen refreshKey={refreshKey} onAdd={openAdd} onEdit={openEdit} />
+      <main className="content" onClick={handleContentClick}>
+        {!overlayOpen && (
+          <>
+            {tab === 'operations' && (
+              <OperationsScreen
+                refreshKey={refreshKey}
+                onAdd={() => setTab('add')}
+                onEdit={(transaction) => setEditing(transaction)}
+                onOpenPurchase={(id) => setPurchaseId(id)}
+              />
+            )}
+            {tab === 'add' && (
+              <AddScreen onManual={() => setManualOpen(true)} onUploaded={(id) => setPurchaseId(id)} />
+            )}
+            {tab === 'reports' && <ReportScreen refreshKey={refreshKey} />}
+          </>
         )}
-        {tab === 'receipt' && <ReceiptScreen />}
-        {tab === 'dashboard' && <DashboardScreen refreshKey={refreshKey} />}
-        {tab === 'form' && (
-          <TransactionFormScreen transaction={editing} onDone={handleSaved} onCancel={closeForm} />
+
+        {overlayOpen && purchaseId !== null && (
+          <PurchaseScreen
+            receiptId={purchaseId}
+            onBack={closeOverlays}
+            onChanged={() => setRefreshKey((value) => value + 1)}
+          />
+        )}
+
+        {overlayOpen && purchaseId === null && (manualOpen || editing) && (
+          <TransactionFormScreen
+            transaction={editing}
+            onDone={handleSaved}
+            onCancel={closeOverlays}
+          />
         )}
       </main>
 
-      <nav className="tabbar">
-        <button
-          className={tab === 'transactions' ? 'tab active' : 'tab'}
-          onClick={() => {
-            setEditing(null)
-            setTab('transactions')
-          }}
-        >
-          Операции
-        </button>
-        <button className={tab === 'form' && !editing ? 'tab active' : 'tab'} onClick={openAdd}>
-          Добавить
-        </button>
-        <button
-          className={tab === 'receipt' ? 'tab active' : 'tab'}
-          onClick={() => {
-            setEditing(null)
-            setTab('receipt')
-          }}
-        >
-          Чек
-        </button>
-        <button
-          className={tab === 'dashboard' ? 'tab active' : 'tab'}
-          onClick={() => {
-            setEditing(null)
-            setTab('dashboard')
-          }}
-        >
-          Отчёты
-        </button>
-      </nav>
+      {!overlayOpen && (
+        <nav className="tabbar">
+          <button
+            className={tab === 'operations' ? 'tab active' : 'tab'}
+            onClick={() => setTab('operations')}
+          >
+            Операции
+          </button>
+          <button className={tab === 'add' ? 'tab active' : 'tab'} onClick={() => setTab('add')}>
+            Добавить
+          </button>
+          <button className={tab === 'reports' ? 'tab active' : 'tab'} onClick={() => setTab('reports')}>
+            Отчёты
+          </button>
+        </nav>
+      )}
     </div>
   )
 }

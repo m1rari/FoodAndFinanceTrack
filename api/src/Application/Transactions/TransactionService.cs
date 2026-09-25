@@ -19,6 +19,7 @@ public sealed class TransactionService : ITransactionService
     {
         var query = _db.Transactions
             .Include(t => t.Category)
+            .Include(t => t.Receipt)
             .Where(t => t.UserId == userId);
 
         if (filter.From is not null)
@@ -163,6 +164,7 @@ public sealed class TransactionService : ITransactionService
     {
         return await _db.Transactions
             .Include(t => t.Category)
+            .Include(t => t.Receipt)
             .Where(t => t.Id == id && t.UserId == userId)
             .Select(t => ToDto(t))
             .FirstAsync(cancellationToken);
@@ -180,5 +182,6 @@ public sealed class TransactionService : ITransactionService
         t.Source.ToString(),
         t.Comment,
         t.ReceiptId,
+        t.Receipt != null ? t.Receipt.MerchantName : null,
         t.CreatedAt);
 }

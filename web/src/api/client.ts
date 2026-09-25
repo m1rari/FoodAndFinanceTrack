@@ -83,7 +83,7 @@ export const api = {
       body: JSON.stringify({ initData: value }),
     }),
 
-  transactions: (params: { from?: string; to?: string } = {}) =>
+  transactions: (params: { from?: string; to?: string; type?: string; categoryId?: string } = {}) =>
     request<TransactionDto[]>(`/api/transactions${buildQuery(params)}`),
 
   createTransaction: (body: CreateTransactionRequest) =>

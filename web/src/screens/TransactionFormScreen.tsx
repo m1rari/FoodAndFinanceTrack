@@ -134,10 +134,10 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
           <span>Сумма</span>
           <input
             inputMode="decimal"
+            enterKeyHint="done"
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
             placeholder="0.00"
-            autoFocus
           />
         </label>
 

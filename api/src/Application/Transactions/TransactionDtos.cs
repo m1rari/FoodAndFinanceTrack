@@ -12,6 +12,7 @@ public sealed record TransactionDto(
     string Source,
     string? Comment,
     Guid? ReceiptId,
+    string? ReceiptMerchantName,
     DateTimeOffset CreatedAt);
 
 public sealed record CreateTransactionRequest(
