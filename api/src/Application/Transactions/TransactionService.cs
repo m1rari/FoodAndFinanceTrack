@@ -138,6 +138,21 @@ public sealed class TransactionService : ITransactionService
         return await GetDtoAsync(userId, transaction.Id, cancellationToken);
     }
 
+    public async Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
+    {
+        var transaction = await _db.Transactions
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId, cancellationToken)
+            ?? throw new NotFoundException("Операция не найдена.");
+
+        if (transaction.Source == TransactionSource.Receipt)
+        {
+            throw new ValidationException("Операция создана из чека — удалите покупку (чек).");
+        }
+
+        _db.Transactions.Remove(transaction);
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<Account> ResolveAccountAsync(Guid userId, Guid? accountId, CancellationToken cancellationToken)
     {
         if (accountId is not null)

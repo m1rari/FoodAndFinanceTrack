@@ -94,6 +94,53 @@ public sealed class TransactionServiceTests
     }
 
     [Fact]
+    public async Task Delete_Manual_Removes()
+    {
+        var (db, userId, categoryId) = await SeedAsync();
+        await using var _ = db;
+        var service = new TransactionService(db);
+
+        var created = await service.CreateAsync(userId, new CreateTransactionRequest(5m, "Expense", categoryId));
+        await service.DeleteAsync(userId, created.Id);
+
+        Assert.Empty(db.Transactions.Where(t => t.Id == created.Id));
+    }
+
+    [Fact]
+    public async Task Delete_ReceiptSource_Throws()
+    {
+        var (db, userId, _) = await SeedAsync();
+        await using var _1 = db;
+        var account = db.Accounts.First();
+        var receiptTransaction = new Transaction
+        {
+            UserId = userId,
+            AccountId = account.Id,
+            Type = TransactionType.Expense,
+            Amount = 5m,
+            Currency = "BYN",
+            OccurredAt = DateTimeOffset.UtcNow,
+            Source = TransactionSource.Receipt
+        };
+        db.Transactions.Add(receiptTransaction);
+        await db.SaveChangesAsync();
+        var service = new TransactionService(db);
+
+        await Assert.ThrowsAsync<ValidationException>(() => service.DeleteAsync(userId, receiptTransaction.Id));
+    }
+
+    [Fact]
+    public async Task Delete_OtherUser_Throws()
+    {
+        var (db, userId, categoryId) = await SeedAsync();
+        await using var _ = db;
+        var service = new TransactionService(db);
+        var created = await service.CreateAsync(userId, new CreateTransactionRequest(5m, "Expense", categoryId));
+
+        await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(Guid.NewGuid(), created.Id));
+    }
+
+    [Fact]
     public async Task Update_ChangeCategory_SetsNewCategory()
     {
         var (db, userId, categoryId) = await SeedAsync();

@@ -105,6 +105,8 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  deleteTransaction: (id: string) => request<void>(`/api/transactions/${id}`, { method: 'DELETE' }),
+
   categories: (type?: string) => request<CategoryDto[]>(`/api/categories${buildQuery({ type })}`),
 
   reportSummary: (from: string, to: string) =>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api, ApiError } from '../api/client'
 import type { CategoryDto, TransactionDto } from '../api/types'
+import BottomSheet from '../components/BottomSheet'
 import { useMainButton } from '../hooks/useMainButton'
 import { haptic, isMainButtonAvailable } from '../telegram/telegram'
 
@@ -29,6 +30,8 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
   const [categories, setCategories] = useState<CategoryDto[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -101,6 +104,25 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     void save()
+  }
+
+  async function handleDelete() {
+    if (!transaction) {
+      return
+    }
+
+    setDeleting(true)
+    setError(null)
+
+    try {
+      await api.deleteTransaction(transaction.id)
+      haptic('success')
+      onDone()
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось удалить операцию')
+      haptic('error')
+      setDeleting(false)
+    }
   }
 
   useMainButton({
@@ -194,6 +216,24 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
           )}
         </div>
       </form>
+
+      {isEdit && (
+        <button className="danger" onClick={() => setDeleteOpen(true)}>
+          Удалить операцию
+        </button>
+      )}
+
+      <BottomSheet open={deleteOpen} title="Удалить операцию?" onClose={() => setDeleteOpen(false)}>
+        <p className="muted">Операция будет удалена безвозвратно.</p>
+        <div className="actions">
+          <button type="button" className="ghost" onClick={() => setDeleteOpen(false)}>
+            Отмена
+          </button>
+          <button type="button" className="danger" disabled={deleting} onClick={handleDelete}>
+            {deleting ? 'Удаление…' : 'Удалить'}
+          </button>
+        </div>
+      </BottomSheet>
     </section>
   )
 }

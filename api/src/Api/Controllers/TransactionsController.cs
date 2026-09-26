@@ -41,4 +41,11 @@ public sealed class TransactionsController : ControllerBase
     {
         return Ok(await _transactions.UpdateAsync(_currentUser.UserId, id, request, cancellationToken));
     }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await _transactions.DeleteAsync(_currentUser.UserId, id, cancellationToken);
+        return NoContent();
+    }
 }
