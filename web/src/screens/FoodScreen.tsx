@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { api, ApiError } from '../api/client'
-import type { FoodLogDto } from '../api/types'
+import type { FoodLogDto, SavedDishDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
 import { compressImage } from '../utils/image'
 import { addDays, dayRange, formatDayTitle } from '../utils/date'
@@ -41,9 +41,12 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
   const galleryInput = useRef<HTMLInputElement>(null)
   const [day, setDay] = useState(() => new Date())
   const [logs, setLogs] = useState<FoodLogDto[]>([])
+  const [saved, setSaved] = useState<SavedDishDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [composeOpen, setComposeOpen] = useState(false)
   const [pending, setPending] = useState<{ blob: Blob; fileName: string; previewUrl: string } | null>(null)
   const [context, setContext] = useState('')
 
@@ -75,6 +78,25 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
     }
   }, [day, refreshKey])
 
+  useEffect(() => {
+    let cancelled = false
+
+    api
+      .savedDishes(undefined, 50)
+      .then((data) => {
+        if (!cancelled) {
+          setSaved(data)
+        }
+      })
+      .catch(() => {
+        // список блюд необязателен
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [refreshKey])
+
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -85,7 +107,6 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
 
     setError(null)
     const compressed = await compressImage(file)
-    setContext('')
     setPending({
       blob: compressed.blob,
       fileName: compressed.fileName,
@@ -93,17 +114,26 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
     })
   }
 
-  function cancelPending() {
+  function openCompose() {
+    setMenuOpen(false)
+    setContext('')
+    setPending(null)
+    setComposeOpen(true)
+  }
+
+  function closeCompose() {
     if (pending) {
       URL.revokeObjectURL(pending.previewUrl)
     }
 
     setPending(null)
     setContext('')
+    setComposeOpen(false)
   }
 
-  async function confirmUpload() {
-    if (!pending) {
+  async function submitCompose() {
+    if (!pending && !context.trim()) {
+      setError('Добавьте фото или опишите блюдо.')
       return
     }
 
@@ -111,26 +141,57 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
     setError(null)
 
     try {
-      const uploaded = await api.uploadFoodLog(pending.blob, pending.fileName, context.trim() || undefined)
-      URL.revokeObjectURL(pending.previewUrl)
+      const created = pending
+        ? await api.uploadFoodLog(pending.blob, pending.fileName, context.trim() || undefined)
+        : await api.createFoodLogText(context.trim())
+
+      if (pending) {
+        URL.revokeObjectURL(pending.previewUrl)
+      }
+
       setPending(null)
-      onUploaded(uploaded.id)
+      setContext('')
+      setComposeOpen(false)
+      onUploaded(created.id)
     } catch (err: unknown) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось загрузить фото')
+      setError(err instanceof ApiError ? err.message : 'Не удалось добавить блюдо')
     } finally {
       setUploading(false)
     }
   }
 
-  const calories = `${range(sum(logs.map((log) => log.caloriesMin)), sum(logs.map((log) => log.caloriesMax)))}`
+  async function addFromSaved(dish: SavedDishDto) {
+    setError(null)
+
+    try {
+      const log = await api.addSavedDishToDiary(dish.id)
+      setMenuOpen(false)
+      onUploaded(log.id)
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось добавить блюдо')
+    }
+  }
+
+  async function toggleFavorite(dish: SavedDishDto) {
+    try {
+      const updated = await api.setSavedDishFavorite(dish.id, !dish.isFavorite)
+      setSaved((items) => items.map((item) => (item.id === updated.id ? updated : item)))
+    } catch {
+      // игнорируем
+    }
+  }
+
+  const favorites = saved.filter((dish) => dish.isFavorite)
+  const recents = saved.filter((dish) => !dish.isFavorite).slice(0, 10)
+  const calories = range(sum(logs.map((log) => log.caloriesMin)), sum(logs.map((log) => log.caloriesMax)))
   const hasCalories = logs.some((log) => log.caloriesMin != null || log.caloriesMax != null)
 
   return (
     <section className="screen">
       <header className="screen-header">
         <h1>Питание</h1>
-        <button className="primary" disabled={uploading} onClick={() => cameraInput.current?.click()}>
-          {uploading ? 'Загрузка…' : '+ Блюдо'}
+        <button className="primary" onClick={() => setMenuOpen(true)}>
+          + Блюдо
         </button>
       </header>
 
@@ -186,15 +247,89 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
         ))}
       </ul>
 
-      <button className="ghost" disabled={uploading} onClick={() => galleryInput.current?.click()}>
-        Выбрать фото из галереи
-      </button>
+      <BottomSheet open={menuOpen} title="Добавить блюдо" onClose={() => setMenuOpen(false)}>
+        <button className="action-card" onClick={openCompose}>
+          <span className="action-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
+          <span className="action-text">
+            <strong>Новое блюдо</strong>
+            <span className="muted small">Фото и/или описание — AI оценит</span>
+          </span>
+        </button>
 
-      <BottomSheet open={pending !== null} title="Добавить блюдо" onClose={cancelPending}>
-        {pending && <img className="receipt-image" src={pending.previewUrl} alt="Блюдо" />}
+        {favorites.length > 0 && (
+          <>
+            <h3 className="sheet-section">Избранные</h3>
+            <ul className="list">
+              {favorites.map((dish) => (
+                <li key={dish.id} className="saved-row">
+                  <button className="saved-main" onClick={() => addFromSaved(dish)}>
+                    <span className="list-title">{dish.name}</span>
+                    <span className="muted small">{range(dish.caloriesMin, dish.caloriesMax)} ккал</span>
+                  </button>
+                  <button className="star on" onClick={() => toggleFavorite(dish)} aria-label="Убрать из избранного">
+                    ★
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {recents.length > 0 && (
+          <>
+            <h3 className="sheet-section">Недавние</h3>
+            <ul className="list">
+              {recents.map((dish) => (
+                <li key={dish.id} className="saved-row">
+                  <button className="saved-main" onClick={() => addFromSaved(dish)}>
+                    <span className="list-title">{dish.name}</span>
+                    <span className="muted small">{range(dish.caloriesMin, dish.caloriesMax)} ккал</span>
+                  </button>
+                  <button className="star" onClick={() => toggleFavorite(dish)} aria-label="В избранное">
+                    ☆
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </BottomSheet>
+
+      <BottomSheet open={composeOpen} title="Новое блюдо" onClose={closeCompose}>
+        {pending ? (
+          <img className="receipt-image" src={pending.previewUrl} alt="Блюдо" />
+        ) : (
+          <p className="muted small">Добавьте фото, опишите блюдо или заполните оба поля.</p>
+        )}
+
+        <div className="segmented">
+          <button type="button" className="ghost" onClick={() => cameraInput.current?.click()}>
+            {pending ? 'Переснять' : 'Сфотографировать'}
+          </button>
+          <button type="button" className="ghost" onClick={() => galleryInput.current?.click()}>
+            Из галереи
+          </button>
+        </div>
+
+        {pending && (
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              URL.revokeObjectURL(pending.previewUrl)
+              setPending(null)
+            }}
+          >
+            Убрать фото
+          </button>
+        )}
 
         <label className="field">
-          <span>Что на фото? (необязательно)</span>
+          <span>Описание (необязательно)</span>
           <textarea
             className="textarea"
             rows={3}
@@ -204,14 +339,17 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
           />
         </label>
 
-        <p className="muted small">Контекст помогает AI точнее распознать блюдо и порцию.</p>
-
         <div className="actions">
-          <button type="button" className="ghost" onClick={cancelPending}>
+          <button type="button" className="ghost" onClick={closeCompose}>
             Отмена
           </button>
-          <button type="button" className="primary" disabled={uploading} onClick={confirmUpload}>
-            {uploading ? 'Распознавание…' : 'Распознать'}
+          <button
+            type="button"
+            className="primary"
+            disabled={uploading || (!pending && !context.trim())}
+            onClick={submitCompose}
+          >
+            {uploading ? 'Обработка…' : 'Оценить'}
           </button>
         </div>
       </BottomSheet>

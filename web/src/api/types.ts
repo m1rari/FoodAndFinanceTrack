@@ -118,6 +118,22 @@ export interface FoodLogDto {
   createdAt: string
 }
 
+export interface SavedDishDto {
+  id: string
+  name: string
+  caloriesMin: number | null
+  caloriesMax: number | null
+  proteinMinG: number | null
+  proteinMaxG: number | null
+  fatMinG: number | null
+  fatMaxG: number | null
+  carbsMinG: number | null
+  carbsMaxG: number | null
+  isFavorite: boolean
+  useCount: number
+  lastUsedAt: string
+}
+
 export interface UpdateFoodLogRequest {
   dishName?: string | null
   userContext?: string | null

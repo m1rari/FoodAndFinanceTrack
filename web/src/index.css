@@ -503,6 +503,43 @@ button:disabled {
   gap: 12px;
 }
 
+.sheet-section {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--hint);
+}
+
+.saved-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.saved-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  color: var(--text);
+  background: var(--secondary-bg);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.star {
+  width: 48px;
+  background: var(--secondary-bg);
+  color: var(--hint);
+  font-size: 20px;
+  border-radius: 12px;
+}
+
+.star.on {
+  color: #f0a500;
+}
+
 .match-card {
   display: flex;
   flex-direction: column;

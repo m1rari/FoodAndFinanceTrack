@@ -36,3 +36,5 @@ public sealed record UpdateFoodLogRequest(
     DateTimeOffset? EatenAt = null);
 
 public sealed record ReanalyzeFoodLogRequest(string? Context = null);
+
+public sealed record CreateFoodLogTextRequest(string Context);

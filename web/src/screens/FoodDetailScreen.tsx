@@ -47,6 +47,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isFavorite, setIsFavorite] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -140,6 +141,45 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
       }
     }
   }, [log])
+
+  useEffect(() => {
+    if (!log?.dishName) {
+      return
+    }
+
+    let cancelled = false
+    const name = log.dishName.toLowerCase()
+
+    api
+      .savedDishes(undefined, 100)
+      .then((items) => {
+        if (!cancelled) {
+          const match = items.find((item) => item.name.toLowerCase() === name)
+          setIsFavorite(match?.isFavorite ?? false)
+        }
+      })
+      .catch(() => {
+        // необязательно
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [log?.dishName])
+
+  async function toggleFavorite() {
+    if (!log) {
+      return
+    }
+
+    try {
+      await api.favoriteFoodLog(log.id, !isFavorite)
+      setIsFavorite((value) => !value)
+      onChanged()
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось обновить избранное')
+    }
+  }
 
   function openEditor() {
     if (!log) {
@@ -290,6 +330,9 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
 
           <button className="primary" onClick={openEditor}>
             Скорректировать
+          </button>
+          <button className="ghost" onClick={toggleFavorite}>
+            {isFavorite ? 'Убрать из избранного' : 'В избранное'}
           </button>
           <button className="ghost" disabled={saving} onClick={() => handleReanalyze(false)}>
             Распознать заново

@@ -47,7 +47,7 @@ public sealed class FoodLogService : IFoodLogService
 
         await _queue.EnqueueAsync(log.Id, cancellationToken);
 
-        return ToDto(log);
+        return FoodLogMapper.ToDto(log);
     }
 
     public async Task<FoodLogDto> CreateFromTextAsync(Guid userId, string text, CancellationToken cancellationToken = default, long? telegramChatId = null)
@@ -72,7 +72,7 @@ public sealed class FoodLogService : IFoodLogService
 
         await _queue.EnqueueAsync(log.Id, cancellationToken);
 
-        return ToDto(log);
+        return FoodLogMapper.ToDto(log);
     }
 
     public async Task<IReadOnlyList<FoodLogDto>> GetAsync(Guid userId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
@@ -81,14 +81,14 @@ public sealed class FoodLogService : IFoodLogService
             .AsNoTracking()
             .Where(f => f.UserId == userId && f.EatenAt >= from && f.EatenAt <= to)
             .OrderByDescending(f => f.EatenAt)
-            .Select(f => ToDto(f))
+            .Select(f => FoodLogMapper.ToDto(f))
             .ToListAsync(cancellationToken);
     }
 
     public async Task<FoodLogDto> GetByIdAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
     {
         var log = await GetAsync(userId, id, cancellationToken);
-        return ToDto(log);
+        return FoodLogMapper.ToDto(log);
     }
 
     public async Task<FoodLogImageDto> GetImageAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
@@ -143,7 +143,7 @@ public sealed class FoodLogService : IFoodLogService
 
         await _db.SaveChangesAsync(cancellationToken);
 
-        return ToDto(log);
+        return FoodLogMapper.ToDto(log);
     }
 
     public async Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
@@ -172,7 +172,7 @@ public sealed class FoodLogService : IFoodLogService
         await _db.SaveChangesAsync(cancellationToken);
         await _queue.EnqueueAsync(log.Id, cancellationToken);
 
-        return ToDto(log);
+        return FoodLogMapper.ToDto(log);
     }
 
     private static string? Normalize(string? value)
@@ -199,23 +199,4 @@ public sealed class FoodLogService : IFoodLogService
         }
     }
 
-    private static FoodLogDto ToDto(FoodLog f) => new(
-        f.Id,
-        f.DishName,
-        f.UserContext,
-        f.CaloriesMin,
-        f.CaloriesMax,
-        f.ProteinMinG,
-        f.ProteinMaxG,
-        f.FatMinG,
-        f.FatMaxG,
-        f.CarbsMinG,
-        f.CarbsMaxG,
-        f.ProteinG,
-        f.FatG,
-        f.CarbsG,
-        f.Status.ToString(),
-        f.EatenAt,
-        $"/api/food-logs/{f.Id}/image",
-        f.CreatedAt);
 }

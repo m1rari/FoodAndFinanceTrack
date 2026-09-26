@@ -6,6 +6,7 @@ import type {
   ReceiptDto,
   ReceiptSummaryDto,
   ReportSummaryDto,
+  SavedDishDto,
   UpdateFoodLogRequest,
   TransactionDto,
   UpdateReceiptItemRequest,
@@ -165,6 +166,31 @@ export const api = {
     }),
 
   deleteFoodLog: (id: string) => request<void>(`/api/food-logs/${id}`, { method: 'DELETE' }),
+
+  createFoodLogText: (context: string) =>
+    request<FoodLogDto>('/api/food-logs/text', { method: 'POST', body: JSON.stringify({ context }) }),
+
+  favoriteFoodLog: (id: string, isFavorite: boolean) =>
+    request<void>(`/api/food-logs/${id}/favorite`, { method: isFavorite ? 'POST' : 'DELETE' }),
+
+  savedDishes: (favorite?: boolean, limit = 50) =>
+    request<SavedDishDto[]>(
+      `/api/saved-dishes${buildQuery({
+        favorite: favorite === undefined ? undefined : String(favorite),
+        limit: String(limit),
+      })}`,
+    ),
+
+  addSavedDishToDiary: (id: string) =>
+    request<FoodLogDto>(`/api/saved-dishes/${id}/diary`, { method: 'POST' }),
+
+  setSavedDishFavorite: (id: string, isFavorite: boolean) =>
+    request<SavedDishDto>(`/api/saved-dishes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isFavorite }),
+    }),
+
+  deleteSavedDish: (id: string) => request<void>(`/api/saved-dishes/${id}`, { method: 'DELETE' }),
 }
 
 export async function fetchFoodImage(imageUrl: string): Promise<Blob> {

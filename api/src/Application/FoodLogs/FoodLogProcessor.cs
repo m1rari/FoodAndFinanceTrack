@@ -3,6 +3,7 @@ using System.Text.Json;
 using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.Common.Options;
 using FinanceFoodTracker.Application.FoodLogs.Analysis;
+using FinanceFoodTracker.Application.SavedDishes;
 using FinanceFoodTracker.Domain.Entities;
 using FinanceFoodTracker.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,7 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
     private readonly IApplicationDbContext _db;
     private readonly IFoodImageAnalyzer _analyzer;
     private readonly ITelegramBot _bot;
+    private readonly ISavedDishService _savedDishes;
     private readonly AiOptions _aiOptions;
     private readonly ILogger<FoodLogProcessor> _logger;
 
@@ -23,12 +25,14 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
         IApplicationDbContext db,
         IFoodImageAnalyzer analyzer,
         ITelegramBot bot,
+        ISavedDishService savedDishes,
         IOptions<AiOptions> aiOptions,
         ILogger<FoodLogProcessor> logger)
     {
         _db = db;
         _analyzer = analyzer;
         _bot = bot;
+        _savedDishes = savedDishes;
         _aiOptions = aiOptions.Value;
         _logger = logger;
     }
@@ -56,6 +60,15 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _savedDishes.UpsertFromFoodLogAsync(log, null, cancellationToken);
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(exception, "Не удалось сохранить блюдо в недавние {FoodLogId}", log.Id);
+        }
 
         if (log.TelegramChatId is long chatId)
         {

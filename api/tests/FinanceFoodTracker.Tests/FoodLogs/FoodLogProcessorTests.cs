@@ -54,7 +54,7 @@ public sealed class FoodLogProcessorTests
     }
 
     private static FoodLogProcessor CreateProcessor(Infrastructure.Persistence.AppDbContext db, IFoodImageAnalyzer analyzer)
-        => new(db, analyzer, new FakeTelegramBot(), Options.Create(new AiOptions { ConfidenceThreshold = 0.6m }), NullLogger<FoodLogProcessor>.Instance);
+        => new(db, analyzer, new FakeTelegramBot(), new Application.SavedDishes.SavedDishService(db), Options.Create(new AiOptions { ConfidenceThreshold = 0.6m }), NullLogger<FoodLogProcessor>.Instance);
 
     private static async Task<(Infrastructure.Persistence.AppDbContext Db, FoodLog Log)> SeedAsync()
     {

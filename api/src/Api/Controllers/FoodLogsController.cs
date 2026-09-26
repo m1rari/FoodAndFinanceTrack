@@ -1,6 +1,7 @@
 using FinanceFoodTracker.Application.Common.Exceptions;
 using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.FoodLogs;
+using FinanceFoodTracker.Application.SavedDishes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinanceFoodTracker.Api.Controllers;
@@ -12,11 +13,13 @@ public sealed class FoodLogsController : ControllerBase
     private const long MaxUploadBytes = 8 * 1024 * 1024;
 
     private readonly IFoodLogService _foodLogs;
+    private readonly ISavedDishService _savedDishes;
     private readonly ICurrentUser _currentUser;
 
-    public FoodLogsController(IFoodLogService foodLogs, ICurrentUser currentUser)
+    public FoodLogsController(IFoodLogService foodLogs, ISavedDishService savedDishes, ICurrentUser currentUser)
     {
         _foodLogs = foodLogs;
+        _savedDishes = savedDishes;
         _currentUser = currentUser;
     }
 
@@ -43,6 +46,24 @@ public sealed class FoodLogsController : ControllerBase
 
         var created = await _foodLogs.CreateAsync(_currentUser.UserId, buffer.ToArray(), file.FileName, context, cancellationToken);
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+    }
+
+    [HttpPost("text")]
+    public async Task<ActionResult<FoodLogDto>> CreateFromText([FromBody] CreateFoodLogTextRequest request, CancellationToken cancellationToken)
+        => Ok(await _foodLogs.CreateFromTextAsync(_currentUser.UserId, request.Context, cancellationToken));
+
+    [HttpPost("{id:guid}/favorite")]
+    public async Task<IActionResult> Favorite(Guid id, CancellationToken cancellationToken)
+    {
+        await _savedDishes.SetFavoriteFromFoodLogAsync(_currentUser.UserId, id, true, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/favorite")]
+    public async Task<IActionResult> Unfavorite(Guid id, CancellationToken cancellationToken)
+    {
+        await _savedDishes.SetFavoriteFromFoodLogAsync(_currentUser.UserId, id, false, cancellationToken);
+        return NoContent();
     }
 
     [HttpGet]
