@@ -24,12 +24,14 @@ public sealed class TransactionService : ITransactionService
 
         if (filter.From is not null)
         {
-            query = query.Where(t => t.OccurredAt >= filter.From);
+            var from = filter.From.Value.ToUniversalTime();
+            query = query.Where(t => t.OccurredAt >= from);
         }
 
         if (filter.To is not null)
         {
-            query = query.Where(t => t.OccurredAt <= filter.To);
+            var to = filter.To.Value.ToUniversalTime();
+            query = query.Where(t => t.OccurredAt <= to);
         }
 
         if (filter.CategoryId is not null)
@@ -80,7 +82,7 @@ public sealed class TransactionService : ITransactionService
             Type = type,
             Amount = request.Amount,
             Currency = account.Currency,
-            OccurredAt = request.OccurredAt ?? DateTimeOffset.UtcNow,
+            OccurredAt = (request.OccurredAt ?? DateTimeOffset.UtcNow).ToUniversalTime(),
             Source = TransactionSource.Manual,
             Comment = request.Comment
         };
@@ -119,7 +121,7 @@ public sealed class TransactionService : ITransactionService
 
         if (request.OccurredAt is not null)
         {
-            transaction.OccurredAt = request.OccurredAt.Value;
+            transaction.OccurredAt = request.OccurredAt.Value.ToUniversalTime();
         }
 
         if (request.ClearComment)

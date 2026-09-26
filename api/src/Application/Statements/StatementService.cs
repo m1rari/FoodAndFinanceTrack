@@ -140,7 +140,7 @@ public sealed class StatementService : IStatementService
                 Type = operation.Direction == "income" ? TransactionType.Income : TransactionType.Expense,
                 Amount = operation.Amount,
                 Currency = string.IsNullOrWhiteSpace(operation.Currency) ? account.Currency : operation.Currency,
-                OccurredAt = operation.OccurredAt,
+                OccurredAt = operation.OccurredAt.ToUniversalTime(),
                 Source = TransactionSource.Statement,
                 Comment = string.IsNullOrWhiteSpace(operation.Description) ? operation.Place : operation.Description,
                 IsTransfer = operation.IsTransfer

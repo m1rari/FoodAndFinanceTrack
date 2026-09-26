@@ -15,8 +15,11 @@ public sealed class ReportService : IReportService
 
     public async Task<ReportSummaryDto> GetSummaryAsync(Guid userId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
     {
+        var fromUtc = from.ToUniversalTime();
+        var toUtc = to.ToUniversalTime();
+
         var transactions = await _db.Transactions
-            .Where(t => t.UserId == userId && !t.IsTransfer && t.OccurredAt >= from && t.OccurredAt <= to)
+            .Where(t => t.UserId == userId && !t.IsTransfer && t.OccurredAt >= fromUtc && t.OccurredAt <= toUtc)
             .Include(t => t.Category)
             .ToListAsync(cancellationToken);
 

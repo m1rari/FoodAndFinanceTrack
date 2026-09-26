@@ -77,9 +77,12 @@ public sealed class FoodLogService : IFoodLogService
 
     public async Task<IReadOnlyList<FoodLogDto>> GetAsync(Guid userId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
     {
+        var fromUtc = from.ToUniversalTime();
+        var toUtc = to.ToUniversalTime();
+
         return await _db.FoodLogs
             .AsNoTracking()
-            .Where(f => f.UserId == userId && f.EatenAt >= from && f.EatenAt <= to)
+            .Where(f => f.UserId == userId && f.EatenAt >= fromUtc && f.EatenAt <= toUtc)
             .OrderByDescending(f => f.EatenAt)
             .Select(f => FoodLogMapper.ToDto(f))
             .ToListAsync(cancellationToken);
@@ -138,7 +141,7 @@ public sealed class FoodLogService : IFoodLogService
 
         if (request.EatenAt is not null)
         {
-            log.EatenAt = request.EatenAt.Value;
+            log.EatenAt = request.EatenAt.Value.ToUniversalTime();
         }
 
         await _db.SaveChangesAsync(cancellationToken);

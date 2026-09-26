@@ -120,7 +120,7 @@ public sealed class OpenCodeGoStatementAnalyzer : IStatementAnalyzer
 
         if (DateTime.TryParse($"{datePart}T{timePart}", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
         {
-            return new DateTimeOffset(parsed, TimeSpan.FromHours(3));
+            return new DateTimeOffset(parsed, TimeSpan.FromHours(3)).ToUniversalTime();
         }
 
         return DateTimeOffset.UtcNow;
