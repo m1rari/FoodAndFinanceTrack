@@ -22,7 +22,7 @@ public sealed class OpenCodeGoStatementAnalyzer : IStatementAnalyzer
     {
         var content = await _client.CompleteJsonAsync(
             BuildSystemPrompt(request),
-            "Разбери банковскую выписку и верни JSON по заданной схеме.",
+            $"Разбери банковскую выписку и верни JSON по заданной схеме.\n\nТекст выписки:\n{request.Text}",
             null,
             request.SessionId,
             cancellationToken);
