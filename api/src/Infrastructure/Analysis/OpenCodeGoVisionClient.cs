@@ -54,14 +54,23 @@ public sealed class OpenCodeGoVisionClient
         bool useResponseFormat,
         CancellationToken cancellationToken)
     {
-        var userContent = new List<ContentPart> { new() { Type = "text", Text = userText } };
+        var hasImage = !string.IsNullOrWhiteSpace(imageDataUrl);
+        object userContent;
 
-        if (!string.IsNullOrWhiteSpace(imageDataUrl))
+        if (hasImage)
         {
-            userContent.Add(new ContentPart { Type = "image_url", ImageUrl = new ImageUrl { Url = imageDataUrl } });
+            userContent = new List<ContentPart>
+            {
+                new() { Type = "text", Text = userText },
+                new() { Type = "image_url", ImageUrl = new ImageUrl { Url = imageDataUrl! } }
+            };
+        }
+        else
+        {
+            userContent = userText;
         }
 
-        var model = string.IsNullOrWhiteSpace(imageDataUrl) ? _options.TextModel : _options.Model;
+        var model = hasImage ? _options.Model : _options.TextModel;
 
         var body = new ChatCompletionRequest
         {
@@ -72,7 +81,7 @@ public sealed class OpenCodeGoVisionClient
                 new()
                 {
                     Role = "system",
-                    Content = new List<ContentPart> { new() { Type = "text", Text = systemPrompt } }
+                    Content = systemPrompt
                 },
                 new()
                 {

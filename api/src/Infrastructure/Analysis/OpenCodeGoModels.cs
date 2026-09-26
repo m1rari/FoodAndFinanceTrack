@@ -33,7 +33,7 @@ internal sealed class ChatMessage
     public string Role { get; set; } = "user";
 
     [JsonPropertyName("content")]
-    public List<ContentPart> Content { get; set; } = new();
+    public object Content { get; set; } = string.Empty;
 }
 
 internal sealed class ContentPart
