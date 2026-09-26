@@ -77,10 +77,12 @@ function buildDays(items: TransactionDto[]): DayGroup[] {
       days.set(key, day)
     }
 
-    if (tx.type === 'Income') {
-      day.income += tx.amount
-    } else {
-      day.expense += tx.amount
+    if (!tx.isTransfer) {
+      if (tx.type === 'Income') {
+        day.income += tx.amount
+      } else {
+        day.expense += tx.amount
+      }
     }
 
     if (tx.type === 'Expense' && tx.receiptId) {
@@ -177,6 +179,10 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
 
     for (const tx of items) {
       currency = tx.currency
+
+      if (tx.isTransfer) {
+        continue
+      }
 
       if (tx.type === 'Income') {
         income += tx.amount
@@ -326,14 +332,22 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
               ) : (
                 <li key={row.tx.id}>
                   <button
-                    className={`list-item ${row.tx.type === 'Income' ? 'is-income' : 'is-expense'}`}
+                    className={`list-item ${
+                      row.tx.isTransfer ? 'is-neutral' : row.tx.type === 'Income' ? 'is-income' : 'is-expense'
+                    }`}
                     onClick={() => onEdit(row.tx)}
                   >
                     <span className="list-main">
                       <span className="list-title">{row.tx.categoryName ?? 'Без категории'}</span>
                       <span className="muted small">
                         {row.tx.comment ? `${row.tx.comment} · ` : ''}
-                        {row.tx.source === 'Receipt' ? 'чек' : 'вручную'}
+                        {row.tx.isTransfer
+                          ? 'перевод'
+                          : row.tx.source === 'Receipt'
+                            ? 'чек'
+                            : row.tx.source === 'Statement'
+                              ? 'выписка'
+                              : 'вручную'}
                       </span>
                     </span>
                     <span className="list-right">

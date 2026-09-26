@@ -17,7 +17,34 @@ export interface TransactionDto {
   comment: string | null
   receiptId: string | null
   receiptMerchantName: string | null
+  isTransfer: boolean
   createdAt: string
+}
+
+export interface StatementOperationDto {
+  occurredAt: string
+  amount: number
+  direction: string
+  description: string | null
+  place: string | null
+  currency: string | null
+  mcc: string | null
+  isTransfer: boolean
+  categoryId: string | null
+  categoryName: string | null
+  categoryHint: string | null
+  confidence: number | null
+}
+
+export interface StatementDto {
+  id: string
+  fileName: string
+  status: string
+  confirmed: boolean
+  createdCount: number
+  createdAt: string
+  error: string | null
+  operations: StatementOperationDto[]
 }
 
 export interface CategoryDto {

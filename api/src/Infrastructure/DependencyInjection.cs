@@ -5,7 +5,9 @@ using FinanceFoodTracker.Application.FoodLogs;
 using FinanceFoodTracker.Application.FoodLogs.Analysis;
 using FinanceFoodTracker.Application.Receipts;
 using FinanceFoodTracker.Application.Receipts.Analysis;
+using FinanceFoodTracker.Application.Statements.Analysis;
 using FinanceFoodTracker.Infrastructure.Analysis;
+using FinanceFoodTracker.Infrastructure.Pdf;
 using FinanceFoodTracker.Infrastructure.Persistence;
 using FinanceFoodTracker.Infrastructure.Security;
 using FinanceFoodTracker.Infrastructure.Storage;
@@ -49,10 +51,14 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.UserAgent.ParseAdd("FoodAndFinanceTracker/1.0");
         });
 
+        services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
+
         services.AddScoped<OpenCodeGoReceiptAnalyzer>();
         services.AddScoped<OpenCodeGoFoodImageAnalyzer>();
+        services.AddScoped<OpenCodeGoStatementAnalyzer>();
         services.AddSingleton<StubReceiptAnalyzer>();
         services.AddSingleton<StubFoodImageAnalyzer>();
+        services.AddSingleton<StubStatementAnalyzer>();
 
         services.AddScoped<IReceiptAnalyzer>(provider =>
         {
@@ -68,6 +74,14 @@ public static class DependencyInjection
             return string.IsNullOrWhiteSpace(options.ApiKey)
                 ? provider.GetRequiredService<StubFoodImageAnalyzer>()
                 : provider.GetRequiredService<OpenCodeGoFoodImageAnalyzer>();
+        });
+
+        services.AddScoped<IStatementAnalyzer>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<OpenCodeGoOptions>>().Value;
+            return string.IsNullOrWhiteSpace(options.ApiKey)
+                ? provider.GetRequiredService<StubStatementAnalyzer>()
+                : provider.GetRequiredService<OpenCodeGoStatementAnalyzer>();
         });
 
         services.AddSingleton<IReceiptProcessingQueue, ReceiptProcessingQueue>();

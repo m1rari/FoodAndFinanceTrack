@@ -12,6 +12,7 @@ import ReportScreen from './screens/ReportScreen'
 import PurchaseScreen from './screens/PurchaseScreen'
 import FoodScreen from './screens/FoodScreen'
 import FoodDetailScreen from './screens/FoodDetailScreen'
+import StatementReviewScreen from './screens/StatementReviewScreen'
 
 type Tab = 'operations' | 'add' | 'food' | 'reports'
 
@@ -29,6 +30,7 @@ export default function App() {
   const [manualOpen, setManualOpen] = useState(false)
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
   const [foodId, setFoodId] = useState<string | null>(null)
+  const [statementId, setStatementId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -50,7 +52,8 @@ export default function App() {
       .finally(() => setLoading(false))
   }, [context])
 
-  const overlayOpen = manualOpen || editing !== null || purchaseId !== null || foodId !== null
+  const overlayOpen =
+    manualOpen || editing !== null || purchaseId !== null || foodId !== null || statementId !== null
   useBackButton(overlayOpen, closeOverlays)
 
   function handleContentClick(event: MouseEvent<HTMLElement>) {
@@ -80,6 +83,7 @@ export default function App() {
     setManualOpen(false)
     setPurchaseId(null)
     setFoodId(null)
+    setStatementId(null)
   }
 
   function handleSaved() {
@@ -109,7 +113,11 @@ export default function App() {
               />
             )}
             {tab === 'add' && (
-              <AddScreen onManual={() => setManualOpen(true)} onUploaded={(id) => setPurchaseId(id)} />
+              <AddScreen
+                onManual={() => setManualOpen(true)}
+                onUploaded={(id) => setPurchaseId(id)}
+                onStatement={(id) => setStatementId(id)}
+              />
             )}
             {tab === 'food' && (
               <FoodScreen
@@ -143,13 +151,26 @@ export default function App() {
           />
         )}
 
-        {overlayOpen && purchaseId === null && foodId === null && (manualOpen || editing) && (
-          <TransactionFormScreen
-            transaction={editing}
-            onDone={handleSaved}
-            onCancel={closeOverlays}
+        {overlayOpen && purchaseId === null && foodId === null && statementId !== null && (
+          <StatementReviewScreen
+            key={statementId}
+            statementId={statementId}
+            onBack={closeOverlays}
+            onChanged={() => setRefreshKey((value) => value + 1)}
           />
         )}
+
+        {overlayOpen &&
+          purchaseId === null &&
+          foodId === null &&
+          statementId === null &&
+          (manualOpen || editing) && (
+            <TransactionFormScreen
+              transaction={editing}
+              onDone={handleSaved}
+              onCancel={closeOverlays}
+            />
+          )}
       </main>
 
       {!overlayOpen && (

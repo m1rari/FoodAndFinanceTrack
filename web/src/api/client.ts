@@ -7,6 +7,8 @@ import type {
   ReceiptSummaryDto,
   ReportSummaryDto,
   SavedDishDto,
+  StatementDto,
+  StatementOperationDto,
   UpdateFoodLogRequest,
   TransactionDto,
   UpdateReceiptItemRequest,
@@ -191,6 +193,20 @@ export const api = {
     }),
 
   deleteSavedDish: (id: string) => request<void>(`/api/saved-dishes/${id}`, { method: 'DELETE' }),
+
+  uploadStatement: (file: Blob, fileName: string) => {
+    const form = new FormData()
+    form.append('file', file, fileName)
+    return request<StatementDto>('/api/statements', { method: 'POST', body: form })
+  },
+
+  statement: (id: string) => request<StatementDto>(`/api/statements/${id}`),
+
+  confirmStatement: (id: string, operations: StatementOperationDto[]) =>
+    request<StatementDto>(`/api/statements/${id}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({ operations }),
+    }),
 }
 
 export async function fetchFoodImage(imageUrl: string): Promise<Blob> {

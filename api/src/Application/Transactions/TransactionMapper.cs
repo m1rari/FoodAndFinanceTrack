@@ -17,5 +17,6 @@ public static class TransactionMapper
         t.Comment,
         t.ReceiptId,
         t.Receipt != null ? t.Receipt.MerchantName : null,
+        t.IsTransfer,
         t.CreatedAt);
 }

@@ -164,6 +164,13 @@
 - **Решение:** модуль `telegram.ts` поверх `window.Telegram.WebApp` (с безопасными no-op вне Telegram): `ready()`, `expand()`, `disableVerticalSwipes()`, `setHeaderColor/setBackgroundColor('bg_color')`. Хуки `useBackButton` (стек обработчиков → native BackButton, включая закрытие bottom-sheet) и `useMainButton` (нативная кнопка формы операции с loading). Хаптики на ключевые действия (таб, сохранение, проведение, удаление, избранное). Изображения — `loading="lazy"`. CSS: `touch-action: manipulation`, `overscroll-behavior-y: none`, скрытие tap-highlight. Vite: vendor-чанк для кэширования.
 - **Последствия:** логика экранов не менялась; вне Telegram всё работает как раньше (MainButton просто скрыт). Бандл: app ~13 КБ gzip + vendor ~85 КБ gzip.
 
+### ADR-021: Импорт банковских выписок (PDF → AI → операции)
+- **Дата:** 2026-09-26
+- **Статус:** принято
+- **Контекст:** нужен импорт выписок Беларусбанка/Приорбанка; переводы между картами и снятие наличных не должны раздувать доходы/расходы.
+- **Решение:** PDF → текст через **PdfPig** (чистый managed, работает на alpine); строки восстанавливаются по координатам слов (Y) с разделителем колонок `|`. Текст отдаётся LLM (`IStatementAnalyzer` через общий `OpenCodeGoVisionClient`, без картинки) со strict-JSON схемой; сумма берётся «в валюте счёта», `is_transfer` = true для P2P/переводов/снятия наличных/ATM. Результат хранится в `statements.parsed_operations` (jsonb) и показывается на экране проверки; подтверждение создаёт `transactions` (`source = statement`). Добавлен флаг `Transaction.IsTransfer`; отчёты (`ReportService`) и дневные итоги его исключают.
+- **Последствия:** миграция `AddStatementsAndTransfers` (`statements`, `transactions.is_transfer`, `source = 4`). Поток «разбор → проверка → подтверждение» (безопасно при ошибках AI). Авто-матчинг с чеками и парное определение переводов между картами — следующий шаг. Учёт по отдельным картам пока не вводим (переводы определяем по описанию/флагу AI).
+
 ---
 
 ## Открытые вопросы

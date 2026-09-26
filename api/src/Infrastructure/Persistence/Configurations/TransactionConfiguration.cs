@@ -21,6 +21,7 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
         builder.Property(t => t.Source).HasColumnName("source").HasConversion<int>().IsRequired();
         builder.Property(t => t.Comment).HasColumnName("comment");
         builder.Property(t => t.ReceiptId).HasColumnName("receipt_id");
+        builder.Property(t => t.IsTransfer).HasColumnName("is_transfer").HasDefaultValue(false).IsRequired();
         builder.Property(t => t.CreatedAt).HasColumnName("created_at").IsRequired();
 
         builder.HasIndex(t => new { t.UserId, t.OccurredAt });

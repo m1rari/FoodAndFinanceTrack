@@ -13,6 +13,7 @@ public interface IApplicationDbContext
     DbSet<ReceiptItem> ReceiptItems { get; }
     DbSet<FoodLog> FoodLogs { get; }
     DbSet<SavedDish> SavedDishes { get; }
+    DbSet<Statement> Statements { get; }
     DbSet<CategoryRule> CategoryRules { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

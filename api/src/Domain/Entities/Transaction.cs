@@ -18,5 +18,6 @@ public class Transaction : Entity
     public string? Comment { get; set; }
     public Guid? ReceiptId { get; set; }
     public Receipt? Receipt { get; set; }
+    public bool IsTransfer { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

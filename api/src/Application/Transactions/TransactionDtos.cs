@@ -13,6 +13,7 @@ public sealed record TransactionDto(
     string? Comment,
     Guid? ReceiptId,
     string? ReceiptMerchantName,
+    bool IsTransfer,
     DateTimeOffset CreatedAt);
 
 public sealed record CreateTransactionRequest(

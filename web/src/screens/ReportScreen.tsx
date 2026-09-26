@@ -54,7 +54,7 @@ export default function ReportScreen({ refreshKey }: Props) {
     const map = new Map<string, number>()
 
     for (const tx of expenses) {
-      if (!tx.receiptMerchantName) {
+      if (tx.isTransfer || !tx.receiptMerchantName) {
         continue
       }
 

@@ -7,11 +7,13 @@ import { compressImage } from '../utils/image'
 interface Props {
   onManual: () => void
   onUploaded: (receiptId: string) => void
+  onStatement: (statementId: string) => void
 }
 
-export default function AddScreen({ onManual, onUploaded }: Props) {
+export default function AddScreen({ onManual, onUploaded, onStatement }: Props) {
   const cameraInput = useRef<HTMLInputElement>(null)
   const galleryInput = useRef<HTMLInputElement>(null)
+  const pdfInput = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,6 +35,28 @@ export default function AddScreen({ onManual, onUploaded }: Props) {
       onUploaded(uploaded.id)
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить чек')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handlePdf(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file) {
+      return
+    }
+
+    setError(null)
+    setUploading(true)
+
+    try {
+      const statement = await api.uploadStatement(file, file.name)
+      haptic('success')
+      onStatement(statement.id)
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось обработать выписку')
     } finally {
       setUploading(false)
     }
@@ -86,6 +110,22 @@ export default function AddScreen({ onManual, onUploaded }: Props) {
         <span className="action-text">
           <strong>Чек из галереи</strong>
           <span className="muted small">Выбрать готовое фото</span>
+        </span>
+      </button>
+
+      <input ref={pdfInput} type="file" accept="application/pdf,.pdf" hidden onChange={handlePdf} />
+
+      <button className="action-card" disabled={uploading} onClick={() => pdfInput.current?.click()}>
+        <span className="action-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+            <path d="M14 3v5h5" />
+            <path d="M9 13h6M9 17h4" />
+          </svg>
+        </span>
+        <span className="action-text">
+          <strong>Выписка банка</strong>
+          <span className="muted small">PDF с операциями по счёту — AI разберёт</span>
         </span>
       </button>
 
