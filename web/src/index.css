@@ -293,7 +293,7 @@ button:disabled {
 
 .stat-strip {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--sp-2);
 }
 
@@ -686,6 +686,10 @@ button:disabled {
 
 .star.on {
   color: #f0a500;
+}
+
+.saved-main.linked {
+  outline: 2px solid var(--brand);
 }
 
 .sheet-section {

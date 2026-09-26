@@ -34,6 +34,12 @@ export interface StatementOperationDto {
   categoryName: string | null
   categoryHint: string | null
   confidence: number | null
+  linkTransactionId: string | null
+}
+
+export interface StatementMatchDto {
+  index: number
+  candidates: TransactionDto[]
 }
 
 export interface StatementDto {

@@ -6,5 +6,7 @@ public interface IStatementService
 
     Task<StatementDto> GetAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<StatementMatchDto>> GetMatchesAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
+
     Task<StatementDto> ConfirmAsync(Guid userId, Guid id, ConfirmStatementRequest request, CancellationToken cancellationToken = default);
 }

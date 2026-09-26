@@ -46,6 +46,10 @@ public sealed class StatementsController : ControllerBase
     public async Task<ActionResult<StatementDto>> Get(Guid id, CancellationToken cancellationToken)
         => Ok(await _statements.GetAsync(_currentUser.UserId, id, cancellationToken));
 
+    [HttpGet("{id:guid}/matches")]
+    public async Task<ActionResult<IReadOnlyList<StatementMatchDto>>> GetMatches(Guid id, CancellationToken cancellationToken)
+        => Ok(await _statements.GetMatchesAsync(_currentUser.UserId, id, cancellationToken));
+
     [HttpPost("{id:guid}/confirm")]
     public async Task<ActionResult<StatementDto>> Confirm(Guid id, [FromBody] ConfirmStatementRequest request, CancellationToken cancellationToken)
         => Ok(await _statements.ConfirmAsync(_currentUser.UserId, id, request, cancellationToken));

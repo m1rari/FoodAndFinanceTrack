@@ -256,13 +256,6 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
             <span className="stat-label">Расход</span>
             <span className="stat-value expense">−{formatMoney(totals.expense, totals.currency)}</span>
           </div>
-          <div className="stat">
-            <span className="stat-label">Итог</span>
-            <span className={totals.net >= 0 ? 'stat-value income' : 'stat-value expense'}>
-              {totals.net >= 0 ? '+' : '−'}
-              {formatMoney(Math.abs(totals.net), totals.currency)}
-            </span>
-          </div>
         </div>
       )}
 

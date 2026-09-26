@@ -8,6 +8,7 @@ import type {
   ReportSummaryDto,
   SavedDishDto,
   StatementDto,
+  StatementMatchDto,
   StatementOperationDto,
   UpdateFoodLogRequest,
   TransactionDto,
@@ -201,6 +202,8 @@ export const api = {
   },
 
   statement: (id: string) => request<StatementDto>(`/api/statements/${id}`),
+
+  statementMatches: (id: string) => request<StatementMatchDto[]>(`/api/statements/${id}/matches`),
 
   confirmStatement: (id: string, operations: StatementOperationDto[]) =>
     request<StatementDto>(`/api/statements/${id}/confirm`, {

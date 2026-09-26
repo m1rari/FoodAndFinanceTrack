@@ -116,6 +116,14 @@ export default function ReportScreen({ refreshKey }: Props) {
             </div>
           </div>
 
+          <div className="card">
+            <span className="muted small">Итого за период</span>
+            <strong className={summary.totalIncome - summary.totalExpense >= 0 ? 'income' : 'expense'}>
+              {summary.totalIncome - summary.totalExpense >= 0 ? '+' : '−'}
+              {formatMoney(Math.abs(summary.totalIncome - summary.totalExpense), summary.currency)}
+            </strong>
+          </div>
+
           <h2 className="section-title">По категориям</h2>
 
           {summary.byCategory.length === 0 && <p className="muted">Нет данных за период.</p>}

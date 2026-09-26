@@ -123,6 +123,71 @@ public sealed class StatementServiceTests
     }
 
     [Fact]
+    public async Task GetMatches_FindsExistingTransaction()
+    {
+        var (db, userId) = await SeedAsync();
+        await using var _ = db;
+        var occurredAt = DateTimeOffset.UtcNow.AddHours(-2);
+        var service = CreateService(db, new[]
+        {
+            new StatementOperationResult(occurredAt, 49.06m, "expense", "Оплата", "MINSK", "BYN", "5411", false, "Продукты", 0.9m)
+        });
+
+        var account = db.Accounts.First();
+        var manual = new Transaction
+        {
+            UserId = userId,
+            AccountId = account.Id,
+            Type = TransactionType.Expense,
+            Amount = 49.06m,
+            Currency = "BYN",
+            OccurredAt = occurredAt,
+            Source = TransactionSource.Manual
+        };
+        db.Transactions.Add(manual);
+        await db.SaveChangesAsync();
+
+        var created = await service.CreateAsync(userId, PdfBytes, "statement.pdf");
+        var matches = await service.GetMatchesAsync(userId, created.Id);
+
+        var match = Assert.Single(matches);
+        Assert.Contains(match.Candidates, candidate => candidate.Id == manual.Id);
+    }
+
+    [Fact]
+    public async Task Confirm_WithLink_DoesNotCreateDuplicate()
+    {
+        var (db, userId) = await SeedAsync();
+        await using var _ = db;
+        var occurredAt = DateTimeOffset.UtcNow.AddHours(-2);
+        var service = CreateService(db, new[]
+        {
+            new StatementOperationResult(occurredAt, 49.06m, "expense", "Оплата", "MINSK", "BYN", "5411", false, "Продукты", 0.9m)
+        });
+        var account = db.Accounts.First();
+        var manual = new Transaction
+        {
+            UserId = userId,
+            AccountId = account.Id,
+            Type = TransactionType.Expense,
+            Amount = 49.06m,
+            Currency = "BYN",
+            OccurredAt = occurredAt,
+            Source = TransactionSource.Manual
+        };
+        db.Transactions.Add(manual);
+        await db.SaveChangesAsync();
+
+        var created = await service.CreateAsync(userId, PdfBytes, "statement.pdf");
+        var operation = new StatementOperationDto(occurredAt, 49.06m, "expense", "Оплата", "MINSK", "BYN", "5411", false, null, null, "Продукты", 0.9m, manual.Id);
+
+        var result = await service.ConfirmAsync(userId, created.Id, new ConfirmStatementRequest(new[] { operation }));
+
+        Assert.Equal(0, result.CreatedCount);
+        Assert.Equal(1, db.Transactions.Count());
+    }
+
+    [Fact]
     public async Task Confirm_Twice_Throws()
     {
         var (db, userId) = await SeedAsync();

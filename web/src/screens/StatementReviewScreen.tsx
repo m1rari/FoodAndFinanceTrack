@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { CategoryDto, StatementDto, StatementOperationDto } from '../api/types'
+import type { CategoryDto, StatementDto, StatementOperationDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
 import { haptic } from '../telegram/telegram'
 import { dayKey, formatDayLabel } from '../utils/date'
-import { formatMoney, formatTime, plural } from '../utils/format'
+import { formatDate, formatMoney, formatTime, plural } from '../utils/format'
 
 interface Props {
   statementId: string
@@ -27,6 +27,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
   const [statement, setStatement] = useState<StatementDto | null>(null)
   const [operations, setOperations] = useState<StatementOperationDto[]>([])
   const [categories, setCategories] = useState<CategoryDto[]>([])
+  const [matches, setMatches] = useState<Record<number, TransactionDto[]>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
@@ -37,6 +38,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
   const [description, setDescription] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [isTransfer, setIsTransfer] = useState(false)
+  const [linkId, setLinkId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -70,6 +72,17 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
         }
       })
 
+    api
+      .statementMatches(statementId)
+      .then((rows) => {
+        if (!cancelled) {
+          setMatches(Object.fromEntries(rows.map((row) => [row.index, row.candidates])))
+        }
+      })
+      .catch(() => {
+        // сопоставление необязательно
+      })
+
     return () => {
       cancelled = true
     }
@@ -83,6 +96,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
     setDescription(operation.description ?? '')
     setCategoryId(operation.categoryId ?? '')
     setIsTransfer(operation.isTransfer)
+    setLinkId(operation.linkTransactionId ?? null)
   }
 
   function saveEditor() {
@@ -108,6 +122,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
               categoryId: categoryId || null,
               categoryName: categoryId ? categories.find((c) => c.id === categoryId)?.name ?? null : null,
               isTransfer,
+              linkTransactionId: linkId,
             }
           : item,
       ),
@@ -211,6 +226,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
                           <span className="muted small">
                             {formatTime(operation.occurredAt)}
                             {operation.isTransfer ? ' · перевод' : ''}
+                            {operation.linkTransactionId ? ' · связано' : ''}
                             {operation.categoryName ? ` · ${operation.categoryName}` : ''}
                             {operation.mcc ? ` · MCC ${operation.mcc}` : ''}
                           </span>
@@ -295,6 +311,39 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
         </div>
 
         <p className="muted small">Переводы между своими счетами и снятие наличных не учитываются в доходах и расходах.</p>
+
+        {editIndex !== null && (matches[editIndex]?.length ?? 0) > 0 && (
+          <>
+            <h3 className="sheet-section">Похожие операции</h3>
+            <ul className="list">
+              {matches[editIndex].map((candidate) => (
+                <li key={candidate.id} className="saved-row">
+                  <button
+                    type="button"
+                    className={linkId === candidate.id ? 'saved-main linked' : 'saved-main'}
+                    onClick={() => setLinkId(linkId === candidate.id ? null : candidate.id)}
+                  >
+                    <span className="list-title">{candidate.categoryName ?? candidate.comment ?? 'Операция'}</span>
+                    <span className="muted small">
+                      {formatDate(candidate.occurredAt)} ·{' '}
+                      {candidate.source === 'Receipt'
+                        ? 'чек'
+                        : candidate.source === 'Statement'
+                          ? 'выписка'
+                          : 'вручную'}
+                    </span>
+                  </button>
+                  <span className="amount">{formatMoney(candidate.amount, candidate.currency)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="muted small">
+              {linkId
+                ? 'Отмечено как уже существующая — новая операция не создаётся.'
+                : 'Нажмите на похожую, чтобы не создавать дубль.'}
+            </p>
+          </>
+        )}
 
         <div className="actions">
           <button type="button" className="danger" onClick={removeOperation}>

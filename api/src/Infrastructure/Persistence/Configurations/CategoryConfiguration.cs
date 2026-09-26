@@ -43,6 +43,7 @@ public sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
         new() { Id = Guid.Parse("11111111-1111-1111-1111-111111111106"), Name = "Одежда", Type = TransactionType.Expense, IsSystem = true },
         new() { Id = Guid.Parse("11111111-1111-1111-1111-111111111107"), Name = "Связь", Type = TransactionType.Expense, IsSystem = true },
         new() { Id = Guid.Parse("11111111-1111-1111-1111-111111111108"), Name = "Прочее", Type = TransactionType.Expense, IsSystem = true },
+        new() { Id = Guid.Parse("11111111-1111-1111-1111-111111111109"), Name = "ЕРИП", Type = TransactionType.Expense, IsSystem = true },
         new() { Id = Guid.Parse("22222222-2222-2222-2222-222222222201"), Name = "Зарплата", Type = TransactionType.Income, IsSystem = true },
         new() { Id = Guid.Parse("22222222-2222-2222-2222-222222222202"), Name = "Подработка", Type = TransactionType.Income, IsSystem = true },
         new() { Id = Guid.Parse("22222222-2222-2222-2222-222222222203"), Name = "Прочее", Type = TransactionType.Income, IsSystem = true }

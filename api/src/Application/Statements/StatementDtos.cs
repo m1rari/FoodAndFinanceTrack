@@ -12,7 +12,10 @@ public sealed record StatementOperationDto(
     Guid? CategoryId,
     string? CategoryName,
     string? CategoryHint,
-    decimal? Confidence);
+    decimal? Confidence,
+    Guid? LinkTransactionId = null);
+
+public sealed record StatementMatchDto(int Index, IReadOnlyList<Transactions.TransactionDto> Candidates);
 
 public sealed record StatementDto(
     Guid Id,
