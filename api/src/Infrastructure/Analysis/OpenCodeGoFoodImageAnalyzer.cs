@@ -44,11 +44,14 @@ public sealed class OpenCodeGoFoodImageAnalyzer : IFoodImageAnalyzer
     public async Task<FoodAnalysisResult> AnalyzeAsync(FoodAnalysisRequest request, CancellationToken cancellationToken = default)
     {
         var dataUrl = await BuildDataUrlAsync(request.ImagePath, cancellationToken);
+        var context = request.Context?.Trim();
 
-        var userText = string.IsNullOrWhiteSpace(request.Context)
-            ? "Оцени блюдо на изображении и верни JSON по заданной схеме."
-            : $"Оцени блюдо на изображении и верни JSON по заданной схеме. " +
-              $"Контекст от пользователя (учитывай при оценке): {request.Context.Trim()}";
+        var userText = dataUrl is null
+            ? $"Оцени блюдо по описанию пользователя и верни JSON по заданной схеме. Описание: {context}"
+            : string.IsNullOrWhiteSpace(context)
+                ? "Оцени блюдо на изображении и верни JSON по заданной схеме."
+                : $"Оцени блюдо на изображении и верни JSON по заданной схеме. " +
+                  $"Контекст от пользователя (учитывай при оценке): {context}";
 
         var content = await _client.CompleteJsonAsync(
             SystemPrompt,
@@ -79,8 +82,13 @@ public sealed class OpenCodeGoFoodImageAnalyzer : IFoodImageAnalyzer
             SafeJson(content));
     }
 
-    private async Task<string> BuildDataUrlAsync(string imagePath, CancellationToken cancellationToken)
+    private async Task<string?> BuildDataUrlAsync(string imagePath, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            return null;
+        }
+
         var imageBytes = await _fileStorage.ReadAsync(imagePath, cancellationToken);
         return $"data:{MediaType(imagePath)};base64,{Convert.ToBase64String(imageBytes)}";
     }

@@ -2,7 +2,9 @@ namespace FinanceFoodTracker.Application.FoodLogs;
 
 public interface IFoodLogService
 {
-    Task<FoodLogDto> CreateAsync(Guid userId, byte[] content, string fileName, string? context = null, CancellationToken cancellationToken = default);
+    Task<FoodLogDto> CreateAsync(Guid userId, byte[] content, string fileName, string? context = null, CancellationToken cancellationToken = default, long? telegramChatId = null);
+
+    Task<FoodLogDto> CreateFromTextAsync(Guid userId, string text, CancellationToken cancellationToken = default, long? telegramChatId = null);
 
     Task<IReadOnlyList<FoodLogDto>> GetAsync(Guid userId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
 

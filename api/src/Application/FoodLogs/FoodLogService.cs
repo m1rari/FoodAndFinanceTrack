@@ -20,7 +20,7 @@ public sealed class FoodLogService : IFoodLogService
         _queue = queue;
     }
 
-    public async Task<FoodLogDto> CreateAsync(Guid userId, byte[] content, string fileName, string? context = null, CancellationToken cancellationToken = default)
+    public async Task<FoodLogDto> CreateAsync(Guid userId, byte[] content, string fileName, string? context = null, CancellationToken cancellationToken = default, long? telegramChatId = null)
     {
         if (content.Length == 0)
         {
@@ -38,7 +38,33 @@ public sealed class FoodLogService : IFoodLogService
             ImagePath = imagePath,
             EatenAt = DateTimeOffset.UtcNow,
             Status = ProcessingStatus.Pending,
-            UserContext = Normalize(context)
+            UserContext = Normalize(context),
+            TelegramChatId = telegramChatId
+        };
+
+        _db.FoodLogs.Add(log);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await _queue.EnqueueAsync(log.Id, cancellationToken);
+
+        return ToDto(log);
+    }
+
+    public async Task<FoodLogDto> CreateFromTextAsync(Guid userId, string text, CancellationToken cancellationToken = default, long? telegramChatId = null)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new ValidationException("Описание блюда пустое.");
+        }
+
+        var log = new FoodLog
+        {
+            UserId = userId,
+            ImagePath = string.Empty,
+            UserContext = text.Trim(),
+            EatenAt = DateTimeOffset.UtcNow,
+            Status = ProcessingStatus.Pending,
+            TelegramChatId = telegramChatId
         };
 
         _db.FoodLogs.Add(log);

@@ -1,3 +1,4 @@
+using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.Common.Options;
 using FinanceFoodTracker.Application.FoodLogs;
 using FinanceFoodTracker.Application.FoodLogs.Analysis;
@@ -37,8 +38,23 @@ public sealed class FoodLogProcessorTests
         }
     }
 
+    private sealed class FakeTelegramBot : ITelegramBot
+    {
+        public Task SendMessageAsync(long chatId, string text, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task SendKeyboardAsync(long chatId, string text, IReadOnlyList<IReadOnlyList<string>> rows, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<byte[]?> DownloadFileAsync(string fileId, CancellationToken cancellationToken = default)
+            => Task.FromResult<byte[]?>(null);
+
+        public Task SetWebhookAsync(string url, string? secretToken, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
     private static FoodLogProcessor CreateProcessor(Infrastructure.Persistence.AppDbContext db, IFoodImageAnalyzer analyzer)
-        => new(db, analyzer, Options.Create(new AiOptions { ConfidenceThreshold = 0.6m }), NullLogger<FoodLogProcessor>.Instance);
+        => new(db, analyzer, new FakeTelegramBot(), Options.Create(new AiOptions { ConfidenceThreshold = 0.6m }), NullLogger<FoodLogProcessor>.Instance);
 
     private static async Task<(Infrastructure.Persistence.AppDbContext Db, FoodLog Log)> SeedAsync()
     {

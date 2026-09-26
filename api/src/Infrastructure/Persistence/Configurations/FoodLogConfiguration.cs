@@ -29,6 +29,7 @@ public sealed class FoodLogConfiguration : IEntityTypeConfiguration<FoodLog>
         builder.Property(f => f.EatenAt).HasColumnName("eaten_at").IsRequired();
         builder.Property(f => f.AiRawResponse).HasColumnName("ai_raw_response").HasColumnType("jsonb");
         builder.Property(f => f.Status).HasColumnName("status").HasConversion<int>().IsRequired();
+        builder.Property(f => f.TelegramChatId).HasColumnName("telegram_chat_id");
         builder.Property(f => f.CreatedAt).HasColumnName("created_at").IsRequired();
 
         builder.HasOne(f => f.User)

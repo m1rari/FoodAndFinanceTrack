@@ -52,7 +52,8 @@ public sealed class ReceiptProcessor : IReceiptProcessor
             var request = new ReceiptAnalysisRequest(
                 receipt.ImagePath,
                 categories.Select(c => c.Name).ToList(),
-                receipt.Id.ToString());
+                receipt.Id.ToString(),
+                receipt.UserContext);
             var result = await _analyzer.AnalyzeAsync(request, cancellationToken);
 
             ApplyResult(receipt, result, categories);

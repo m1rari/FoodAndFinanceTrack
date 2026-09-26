@@ -24,9 +24,18 @@ public sealed class OpenCodeGoReceiptAnalyzer : IReceiptAnalyzer
     public async Task<ReceiptAnalysisResult> AnalyzeAsync(ReceiptAnalysisRequest request, CancellationToken cancellationToken = default)
     {
         var dataUrl = await BuildDataUrlAsync(request.ImagePath, cancellationToken);
+
+        var baseText = dataUrl is null
+            ? "Разбери описание чека и верни JSON по заданной схеме."
+            : "Распознай чек на изображении и верни JSON по заданной схеме.";
+
+        var userText = string.IsNullOrWhiteSpace(request.Context)
+            ? baseText
+            : $"{baseText} Описание от пользователя: {request.Context.Trim()}";
+
         var content = await _client.CompleteJsonAsync(
             BuildSystemPrompt(request.Categories),
-            "Распознай чек на изображении и верни JSON по заданной схеме.",
+            userText,
             dataUrl,
             request.SessionId,
             cancellationToken);
@@ -41,8 +50,13 @@ public sealed class OpenCodeGoReceiptAnalyzer : IReceiptAnalyzer
         return ToResult(payload, SafeJson(content));
     }
 
-    private async Task<string> BuildDataUrlAsync(string imagePath, CancellationToken cancellationToken)
+    private async Task<string?> BuildDataUrlAsync(string imagePath, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            return null;
+        }
+
         var imageBytes = await _fileStorage.ReadAsync(imagePath, cancellationToken);
         return $"data:{MediaType(imagePath)};base64,{Convert.ToBase64String(imageBytes)}";
     }

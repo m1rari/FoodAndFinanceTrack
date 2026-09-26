@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.Common.Options;
@@ -14,17 +15,20 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
 {
     private readonly IApplicationDbContext _db;
     private readonly IFoodImageAnalyzer _analyzer;
+    private readonly ITelegramBot _bot;
     private readonly AiOptions _aiOptions;
     private readonly ILogger<FoodLogProcessor> _logger;
 
     public FoodLogProcessor(
         IApplicationDbContext db,
         IFoodImageAnalyzer analyzer,
+        ITelegramBot bot,
         IOptions<AiOptions> aiOptions,
         ILogger<FoodLogProcessor> logger)
     {
         _db = db;
         _analyzer = analyzer;
+        _bot = bot;
         _aiOptions = aiOptions.Value;
         _logger = logger;
     }
@@ -52,6 +56,50 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        if (log.TelegramChatId is long chatId)
+        {
+            await NotifyTelegramAsync(chatId, log, cancellationToken);
+        }
+    }
+
+    private async Task NotifyTelegramAsync(long chatId, FoodLog log, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var text = log.Status switch
+            {
+                ProcessingStatus.Processed =>
+                    $"✅ Блюдо добавлено: {log.DishName ?? "блюдо"} · {FormatRange(log.CaloriesMin, log.CaloriesMax)} ккал (оценка).\nОткройте приложение, чтобы посмотреть детали.",
+                ProcessingStatus.NeedsReview =>
+                    "⚠️ Не удалось уверенно оценить блюдо. Проверьте в приложении.",
+                ProcessingStatus.Failed =>
+                    "⚠️ Не удалось оценить блюдо. Добавьте его вручную.",
+                _ => null
+            };
+
+            if (text is not null)
+            {
+                await _bot.SendMessageAsync(chatId, text, cancellationToken);
+            }
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(exception, "Не удалось отправить уведомление в Telegram для блюда {FoodLogId}", log.Id);
+        }
+    }
+
+    private static string FormatRange(decimal? min, decimal? max)
+    {
+        var low = (min ?? max)?.ToString("0", CultureInfo.InvariantCulture);
+        var high = (max ?? min)?.ToString("0", CultureInfo.InvariantCulture);
+
+        if (low is null || high is null)
+        {
+            return "—";
+        }
+
+        return low == high ? low : $"{low}–{high}";
     }
 
     private void ApplyResult(FoodLog log, FoodAnalysisResult result)

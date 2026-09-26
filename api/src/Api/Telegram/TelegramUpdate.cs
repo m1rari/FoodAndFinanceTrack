@@ -25,8 +25,29 @@ public sealed class TelegramMessage
     [JsonPropertyName("document")]
     public TelegramDocument? Document { get; set; }
 
+    [JsonPropertyName("voice")]
+    public TelegramVoice? Voice { get; set; }
+
+    [JsonPropertyName("audio")]
+    public TelegramAudio? Audio { get; set; }
+
     [JsonPropertyName("text")]
     public string? Text { get; set; }
+
+    [JsonPropertyName("caption")]
+    public string? Caption { get; set; }
+}
+
+public sealed class TelegramVoice
+{
+    [JsonPropertyName("file_id")]
+    public string FileId { get; set; } = string.Empty;
+}
+
+public sealed class TelegramAudio
+{
+    [JsonPropertyName("file_id")]
+    public string FileId { get; set; } = string.Empty;
 }
 
 public sealed class TelegramChat

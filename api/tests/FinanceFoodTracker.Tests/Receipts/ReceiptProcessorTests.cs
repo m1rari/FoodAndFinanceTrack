@@ -44,6 +44,9 @@ public sealed class ReceiptProcessorTests
         public Task SendMessageAsync(long chatId, string text, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
 
+        public Task SendKeyboardAsync(long chatId, string text, IReadOnlyList<IReadOnlyList<string>> rows, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
         public Task<byte[]?> DownloadFileAsync(string fileId, CancellationToken cancellationToken = default)
             => Task.FromResult<byte[]?>(null);
 

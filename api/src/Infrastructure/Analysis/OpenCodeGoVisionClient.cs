@@ -26,7 +26,7 @@ public sealed class OpenCodeGoVisionClient
     public async Task<string> CompleteJsonAsync(
         string systemPrompt,
         string userText,
-        string imageDataUrl,
+        string? imageDataUrl,
         string sessionId,
         CancellationToken cancellationToken = default)
     {
@@ -49,11 +49,18 @@ public sealed class OpenCodeGoVisionClient
     private async Task<ChatCompletionResponse?> CompleteAsync(
         string systemPrompt,
         string userText,
-        string imageDataUrl,
+        string? imageDataUrl,
         string sessionId,
         bool useResponseFormat,
         CancellationToken cancellationToken)
     {
+        var userContent = new List<ContentPart> { new() { Type = "text", Text = userText } };
+
+        if (!string.IsNullOrWhiteSpace(imageDataUrl))
+        {
+            userContent.Add(new ContentPart { Type = "image_url", ImageUrl = new ImageUrl { Url = imageDataUrl } });
+        }
+
         var body = new ChatCompletionRequest
         {
             Model = _options.Model,
@@ -68,11 +75,7 @@ public sealed class OpenCodeGoVisionClient
                 new()
                 {
                     Role = "user",
-                    Content = new List<ContentPart>
-                    {
-                        new() { Type = "text", Text = userText },
-                        new() { Type = "image_url", ImageUrl = new ImageUrl { Url = imageDataUrl } }
-                    }
+                    Content = userContent
                 }
             }
         };

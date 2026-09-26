@@ -13,6 +13,7 @@ public sealed class ReceiptConfiguration : IEntityTypeConfiguration<Receipt>
         builder.Property(r => r.Id).HasColumnName("id");
         builder.Property(r => r.UserId).HasColumnName("user_id").IsRequired();
         builder.Property(r => r.ImagePath).HasColumnName("image_path").IsRequired();
+        builder.Property(r => r.UserContext).HasColumnName("user_context").HasMaxLength(2000);
         builder.Property(r => r.MerchantName).HasColumnName("merchant_name").HasMaxLength(255);
         builder.Property(r => r.PurchaseDate).HasColumnName("purchase_date");
         builder.Property(r => r.TotalAmount).HasColumnName("total_amount").HasPrecision(12, 2);

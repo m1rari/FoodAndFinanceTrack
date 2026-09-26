@@ -49,6 +49,30 @@ public sealed class ReceiptService : IReceiptService
         return await GetDtoAsync(userId, receipt.Id, cancellationToken);
     }
 
+    public async Task<ReceiptDto> CreateFromTextAsync(Guid userId, string text, CancellationToken cancellationToken = default, long? telegramChatId = null)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new ValidationException("Описание чека пустое.");
+        }
+
+        var receipt = new Receipt
+        {
+            UserId = userId,
+            ImagePath = string.Empty,
+            UserContext = text.Trim(),
+            Status = ProcessingStatus.Pending,
+            TelegramChatId = telegramChatId
+        };
+
+        _db.Receipts.Add(receipt);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await _queue.EnqueueAsync(receipt.Id, cancellationToken);
+
+        return await GetDtoAsync(userId, receipt.Id, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<ReceiptSummaryDto>> GetListAsync(Guid userId, bool onlyUnconfirmed = false, CancellationToken cancellationToken = default)
     {
         var query = _db.Receipts

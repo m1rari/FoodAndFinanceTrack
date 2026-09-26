@@ -24,14 +24,36 @@ public sealed class TelegramBotClient : ITelegramBot
 
     public async Task SendMessageAsync(long chatId, string text, CancellationToken cancellationToken = default)
     {
+        var body = new { chat_id = chatId, text, disable_web_page_preview = true };
+        await SendAsync(body, cancellationToken);
+    }
+
+    public async Task SendKeyboardAsync(long chatId, string text, IReadOnlyList<IReadOnlyList<string>> rows, CancellationToken cancellationToken = default)
+    {
+        var keyboard = rows
+            .Select(row => row.Select(label => new { text = label }).ToArray())
+            .ToArray();
+
+        var body = new
+        {
+            chat_id = chatId,
+            text,
+            reply_markup = new
+            {
+                keyboard,
+                resize_keyboard = true,
+                is_persistent = true
+            }
+        };
+
+        await SendAsync(body, cancellationToken);
+    }
+
+    private async Task SendAsync(object body, CancellationToken cancellationToken)
+    {
         try
         {
-            var response = await _http.PostAsJsonAsync(
-                "sendMessage",
-                new { chat_id = chatId, text, disable_web_page_preview = true },
-                SerializerOptions,
-                cancellationToken);
-
+            var response = await _http.PostAsJsonAsync("sendMessage", body, SerializerOptions, cancellationToken);
             await EnsureOkAsync(response, "sendMessage", cancellationToken);
         }
         catch (HttpRequestException)

@@ -23,5 +23,6 @@ public class FoodLog : Entity
     public DateTimeOffset EatenAt { get; set; } = DateTimeOffset.UtcNow;
     public string? AiRawResponse { get; set; }
     public ProcessingStatus Status { get; set; } = ProcessingStatus.Pending;
+    public long? TelegramChatId { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

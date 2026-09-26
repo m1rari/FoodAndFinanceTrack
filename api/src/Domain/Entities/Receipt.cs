@@ -7,6 +7,7 @@ public class Receipt : Entity
     public Guid UserId { get; set; }
     public User? User { get; set; }
     public string ImagePath { get; set; } = string.Empty;
+    public string? UserContext { get; set; }
     public string? MerchantName { get; set; }
     public DateTimeOffset? PurchaseDate { get; set; }
     public decimal? TotalAmount { get; set; }

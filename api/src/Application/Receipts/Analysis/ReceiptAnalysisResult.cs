@@ -3,7 +3,8 @@ namespace FinanceFoodTracker.Application.Receipts.Analysis;
 public sealed record ReceiptAnalysisRequest(
     string ImagePath,
     IReadOnlyList<string> Categories,
-    string SessionId);
+    string SessionId,
+    string? Context = null);
 
 public sealed record ReceiptAnalysisItem(
     string Name,
