@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { api, ApiError } from '../api/client'
 import type { CategoryDto, TransactionDto } from '../api/types'
+import { useMainButton } from '../hooks/useMainButton'
+import { haptic, isMainButtonAvailable } from '../telegram/telegram'
 
 interface Props {
   transaction: TransactionDto | null
@@ -50,15 +52,16 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
   }, [])
 
   const available = categories.filter((category) => category.type === type)
+  const mainButtonAvailable = isMainButtonAvailable()
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
+  async function save() {
     setError(null)
 
     const parsed = Number(amount.replace(',', '.'))
 
     if (!Number.isFinite(parsed) || parsed <= 0) {
       setError('Введите сумму больше нуля.')
+      haptic('error')
       return
     }
 
@@ -85,13 +88,28 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
         })
       }
 
+      haptic('success')
       onDone()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить операцию')
+      haptic('error')
     } finally {
       setSaving(false)
     }
   }
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    void save()
+  }
+
+  useMainButton({
+    text: isEdit ? 'Сохранить' : 'Добавить',
+    visible: mainButtonAvailable,
+    enabled: !saving,
+    loading: saving,
+    onClick: () => void save(),
+  })
 
   return (
     <section className="screen">
@@ -169,9 +187,11 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
           <button type="button" className="ghost" onClick={onCancel}>
             Отмена
           </button>
-          <button type="submit" className="primary" disabled={saving}>
-            {saving ? 'Сохранение…' : 'Сохранить'}
-          </button>
+          {!mainButtonAvailable && (
+            <button type="submit" className="primary" disabled={saving}>
+              {saving ? 'Сохранение…' : 'Сохранить'}
+            </button>
+          )}
         </div>
       </form>
     </section>

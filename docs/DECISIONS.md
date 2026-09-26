@@ -157,6 +157,15 @@
 
 ---
 
+### ADR-020: Интеграция с платформой Mini App (нативная оптимизация)
+- **Дата:** 2026-09-26
+- **Статус:** принято
+- **Контекст:** нужен нативный отклик и скорость внутри Telegram.
+- **Решение:** модуль `telegram.ts` поверх `window.Telegram.WebApp` (с безопасными no-op вне Telegram): `ready()`, `expand()`, `disableVerticalSwipes()`, `setHeaderColor/setBackgroundColor('bg_color')`. Хуки `useBackButton` (стек обработчиков → native BackButton, включая закрытие bottom-sheet) и `useMainButton` (нативная кнопка формы операции с loading). Хаптики на ключевые действия (таб, сохранение, проведение, удаление, избранное). Изображения — `loading="lazy"`. CSS: `touch-action: manipulation`, `overscroll-behavior-y: none`, скрытие tap-highlight. Vite: vendor-чанк для кэширования.
+- **Последствия:** логика экранов не менялась; вне Telegram всё работает как раньше (MainButton просто скрыт). Бандл: app ~13 КБ gzip + vendor ~85 КБ gzip.
+
+---
+
 ## Открытые вопросы
 
 Взято из ТЗ §12. Ответ фиксировать здесь и, при необходимости, оформить ADR.

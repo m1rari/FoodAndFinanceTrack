@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { api, ApiError, fetchReceiptImage } from '../api/client'
 import type { CategoryDto, ReceiptDto, ReceiptItemDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import { haptic } from '../telegram/telegram'
 import { formatDate, formatMoney } from '../utils/format'
 
 interface Props {
@@ -162,6 +163,7 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
       const linked = await api.linkReceipt(receipt.id, transactionId)
       setReceipt(linked)
       setMatches([])
+      haptic('success')
       onChanged()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось прикрепить чек')
@@ -241,6 +243,7 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
     try {
       await api.deleteReceipt(receipt.id)
       setDeleteOpen(false)
+      haptic('success')
       onChanged()
       onBack()
     } catch (err: unknown) {
@@ -260,6 +263,7 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
     try {
       const confirmed = await api.confirmReceipt(receipt.id)
       setReceipt(confirmed)
+      haptic('success')
       onChanged()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось провести покупку')
@@ -288,7 +292,9 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
             {receipt.confirmed && <p className="status confirmed">В операциях</p>}
           </div>
 
-          {previewUrl && <img className="receipt-image" src={previewUrl} alt="Чек" />}
+          {previewUrl && (
+            <img className="receipt-image" src={previewUrl} alt="Чек" loading="lazy" decoding="async" />
+          )}
 
           <div className="purchase-head">
             <div>

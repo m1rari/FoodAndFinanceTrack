@@ -3,6 +3,8 @@ import type { MouseEvent } from 'react'
 import { api, ApiError, setInitData } from './api/client'
 import type { TransactionDto, UserDto } from './api/types'
 import { initTelegram } from './telegram/init'
+import { haptic } from './telegram/telegram'
+import { useBackButton } from './hooks/useBackButton'
 import OperationsScreen from './screens/OperationsScreen'
 import AddScreen from './screens/AddScreen'
 import TransactionFormScreen from './screens/TransactionFormScreen'
@@ -48,6 +50,9 @@ export default function App() {
       .finally(() => setLoading(false))
   }, [context])
 
+  const overlayOpen = manualOpen || editing !== null || purchaseId !== null || foodId !== null
+  useBackButton(overlayOpen, closeOverlays)
+
   function handleContentClick(event: MouseEvent<HTMLElement>) {
     const target = event.target as HTMLElement
 
@@ -84,7 +89,11 @@ export default function App() {
     setTab('operations')
   }
 
-  const overlayOpen = manualOpen || editing !== null || purchaseId !== null || foodId !== null
+  function switchTab(next: Tab) {
+    haptic('select')
+    setEditing(null)
+    setTab(next)
+  }
 
   return (
     <div className="app">
@@ -147,17 +156,31 @@ export default function App() {
         <nav className="tabbar">
           <button
             className={tab === 'operations' ? 'tab active' : 'tab'}
-            onClick={() => setTab('operations')}
+            onClick={() => switchTab('operations')}
           >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 3h14v18l-7-4-7 4z" />
+            </svg>
             Операции
           </button>
-          <button className={tab === 'add' ? 'tab active' : 'tab'} onClick={() => setTab('add')}>
+          <button className={tab === 'add' ? 'tab active' : 'tab'} onClick={() => switchTab('add')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v8M8 12h8" />
+            </svg>
             Добавить
           </button>
-          <button className={tab === 'food' ? 'tab active' : 'tab'} onClick={() => setTab('food')}>
+          <button className={tab === 'food' ? 'tab active' : 'tab'} onClick={() => switchTab('food')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3c3 3 5 5 5 9a5 5 0 0 1-10 0c0-4 2-6 5-9z" />
+              <path d="M12 21v-6" />
+            </svg>
             Питание
           </button>
-          <button className={tab === 'reports' ? 'tab active' : 'tab'} onClick={() => setTab('reports')}>
+          <button className={tab === 'reports' ? 'tab active' : 'tab'} onClick={() => switchTab('reports')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 20V10M12 20V4M20 20v-6" />
+            </svg>
             Отчёты
           </button>
         </nav>

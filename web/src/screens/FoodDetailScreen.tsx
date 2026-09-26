@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { api, ApiError, fetchFoodImage } from '../api/client'
 import type { FoodLogDto, UpdateFoodLogRequest } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import { haptic } from '../telegram/telegram'
 import { formatDate, formatTime } from '../utils/format'
 
 interface Props {
@@ -175,6 +176,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
     try {
       await api.favoriteFoodLog(log.id, !isFavorite)
       setIsFavorite((value) => !value)
+      haptic('light')
       onChanged()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось обновить избранное')
@@ -228,6 +230,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
       const updated = await api.updateFoodLog(log.id, body)
       setLog(updated)
       setEditOpen(false)
+      haptic('success')
       onChanged()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить')
@@ -266,6 +269,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
 
     try {
       await api.deleteFoodLog(log.id)
+      haptic('success')
       onChanged()
       onBack()
     } catch (err: unknown) {
@@ -294,7 +298,9 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
             <p className="status">Оценка AI, может отличаться</p>
           </div>
 
-          {previewUrl && <img className="receipt-image" src={previewUrl} alt="Блюдо" />}
+          {previewUrl && (
+            <img className="receipt-image" src={previewUrl} alt="Блюдо" loading="lazy" decoding="async" />
+          )}
 
           <div className="purchase-head">
             <div>

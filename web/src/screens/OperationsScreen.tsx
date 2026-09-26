@@ -170,6 +170,23 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
   }, [period, type, categoryId, refreshKey])
 
   const days = useMemo(() => buildDays(items), [items])
+  const totals = useMemo(() => {
+    let income = 0
+    let expense = 0
+    let currency = 'BYN'
+
+    for (const tx of items) {
+      currency = tx.currency
+
+      if (tx.type === 'Income') {
+        income += tx.amount
+      } else {
+        expense += tx.amount
+      }
+    }
+
+    return { income, expense, net: income - expense, currency }
+  }, [items])
   const filtersActive = type !== '' || categoryId !== '' || period.preset === 'custom'
 
   function applyPreset(preset: PeriodPreset) {
@@ -223,6 +240,26 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
         </button>
       </div>
 
+      {items.length > 0 && (
+        <div className="stat-strip">
+          <div className="stat">
+            <span className="stat-label">Доход</span>
+            <span className="stat-value income">+{formatMoney(totals.income, totals.currency)}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">Расход</span>
+            <span className="stat-value expense">−{formatMoney(totals.expense, totals.currency)}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">Итог</span>
+            <span className={totals.net >= 0 ? 'stat-value income' : 'stat-value expense'}>
+              {totals.net >= 0 ? '+' : '−'}
+              {formatMoney(Math.abs(totals.net), totals.currency)}
+            </span>
+          </div>
+        </div>
+      )}
+
       {receipts.length > 0 && (
         <div className="unconfirmed">
           <h2 className="section-title">Неразобранные покупки</h2>
@@ -272,7 +309,7 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
             {day.rows.map((row) =>
               row.kind === 'purchase' ? (
                 <li key={`p-${row.group.receiptId}`}>
-                  <button className="list-item" onClick={() => onOpenPurchase(row.group.receiptId)}>
+                  <button className="list-item is-purchase" onClick={() => onOpenPurchase(row.group.receiptId)}>
                     <span className="list-main">
                       <span className="list-title">{row.group.merchant ?? 'Покупка'}</span>
                       <span className="muted small">
@@ -288,7 +325,10 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
                 </li>
               ) : (
                 <li key={row.tx.id}>
-                  <button className="list-item" onClick={() => onEdit(row.tx)}>
+                  <button
+                    className={`list-item ${row.tx.type === 'Income' ? 'is-income' : 'is-expense'}`}
+                    onClick={() => onEdit(row.tx)}
+                  >
                     <span className="list-main">
                       <span className="list-title">{row.tx.categoryName ?? 'Без категории'}</span>
                       <span className="muted small">

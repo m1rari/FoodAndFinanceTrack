@@ -1,21 +1,14 @@
 import { init, retrieveRawInitData } from '@telegram-apps/sdk'
+import { getWebApp, initializeTelegramUi } from './telegram'
 
 export interface TelegramContext {
   initData: string
   hasTelegram: boolean
 }
 
-interface TelegramWebApp {
-  initData?: string
-}
-
-declare global {
-  interface Window {
-    Telegram?: { WebApp?: TelegramWebApp }
-  }
-}
-
 export function initTelegram(): TelegramContext {
+  initializeTelegramUi()
+
   try {
     init()
   } catch {
@@ -31,7 +24,7 @@ export function initTelegram(): TelegramContext {
   }
 
   if (!initData) {
-    initData = window.Telegram?.WebApp?.initData ?? ''
+    initData = getWebApp()?.initData ?? ''
   }
 
   if (!initData) {

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useBackButton } from '../hooks/useBackButton'
 
 interface Props {
   open: boolean
@@ -8,6 +9,8 @@ interface Props {
 }
 
 export default function BottomSheet({ open, title, onClose, children }: Props) {
+  useBackButton(open, onClose)
+
   if (!open) {
     return null
   }

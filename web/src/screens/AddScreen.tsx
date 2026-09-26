@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { api, ApiError } from '../api/client'
+import { haptic } from '../telegram/telegram'
 import { compressImage } from '../utils/image'
 
 interface Props {
@@ -28,6 +29,7 @@ export default function AddScreen({ onManual, onUploaded }: Props) {
     try {
       const compressed = await compressImage(file)
       const uploaded = await api.uploadReceipt(compressed.blob, compressed.fileName)
+      haptic('success')
       onUploaded(uploaded.id)
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить чек')

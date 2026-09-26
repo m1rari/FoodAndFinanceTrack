@@ -3,6 +3,7 @@ import type { ChangeEvent } from 'react'
 import { api, ApiError } from '../api/client'
 import type { FoodLogDto, SavedDishDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import { haptic } from '../telegram/telegram'
 import { compressImage } from '../utils/image'
 import { addDays, dayRange, formatDayTitle } from '../utils/date'
 import { formatTime } from '../utils/format'
@@ -152,6 +153,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
       setPending(null)
       setContext('')
       setComposeOpen(false)
+      haptic('success')
       onUploaded(created.id)
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось добавить блюдо')
@@ -166,6 +168,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
     try {
       const log = await api.addSavedDishToDiary(dish.id)
       setMenuOpen(false)
+      haptic('success')
       onUploaded(log.id)
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось добавить блюдо')
@@ -226,7 +229,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
       <ul className="list">
         {logs.map((log) => (
           <li key={log.id}>
-            <button className="list-item" onClick={() => onOpen(log.id)}>
+            <button className="list-item is-neutral" onClick={() => onOpen(log.id)}>
               <span className="list-main">
                 <span className="list-title">{log.dishName ?? 'Блюдо'}</span>
                 <span className="muted small">
