@@ -10,5 +10,7 @@ public sealed class OpenCodeGoOptions
 
     public string Model { get; set; } = "deepseek-v4-flash-vision-exp";
 
+    public string TextModel { get; set; } = "deepseek-v4.1-flash";
+
     public int TimeoutSeconds { get; set; } = 120;
 }

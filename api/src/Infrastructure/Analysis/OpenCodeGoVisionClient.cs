@@ -61,9 +61,11 @@ public sealed class OpenCodeGoVisionClient
             userContent.Add(new ContentPart { Type = "image_url", ImageUrl = new ImageUrl { Url = imageDataUrl } });
         }
 
+        var model = string.IsNullOrWhiteSpace(imageDataUrl) ? _options.TextModel : _options.Model;
+
         var body = new ChatCompletionRequest
         {
-            Model = _options.Model,
+            Model = model,
             RequestFormat = useResponseFormat ? new ResponseFormat() : null,
             Messages = new List<ChatMessage>
             {

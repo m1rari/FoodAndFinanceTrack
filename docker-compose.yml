@@ -37,6 +37,7 @@ services:
       - Telegram__PublicBaseUrl=${PUBLIC_BASE_URL:-}
       - OpenCodeGo__ApiKey=${OPENCODE_GO_KEY}
       - OpenCodeGo__Model=${AI_MODEL:-deepseek-v4-flash-vision-exp}
+      - OpenCodeGo__TextModel=${AI_TEXT_MODEL:-deepseek-v4.1-flash}
       - Ai__ConfidenceThreshold=${AI_CONFIDENCE_THRESHOLD:-0.6}
       - Storage__RootPath=/app/uploads
     volumes:
