@@ -11,7 +11,7 @@ internal sealed class ChatCompletionRequest
     public List<ChatMessage> Messages { get; set; } = new();
 
     [JsonPropertyName("max_tokens")]
-    public int MaxTokens { get; set; } = 2048;
+    public int MaxTokens { get; set; } = 8192;
 
     [JsonPropertyName("temperature")]
     public double Temperature { get; set; }

@@ -86,7 +86,10 @@ public sealed class OpenCodeGoStatementAnalyzer : IStatementAnalyzer
             - category: выбери СТРОГО из списка расходов для direction "expense": {{expense}};
               для direction "income" из списка доходов: {{income}}. Если не подходит — null.
               MCC помогает: 5411 продукты, 5541 АЗС/топливо, 4900 коммунальные/связь, 6012 финансовые переводы.
+            - "description" — кратко (магазин/назначение, например "SHOP DIONIS", "ERIP", "AZS N1"), без повторов place.
             - Если строка не является операцией (заголовки, итоги) — не включай её.
+            - НЕ включай поля со значением null (кроме обязательных date, amount, direction) — так JSON короче и не обрежется.
+            - Отвечай компактным JSON без лишних пробелов и переносов.
             """;
     }
 
