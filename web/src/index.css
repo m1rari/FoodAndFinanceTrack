@@ -692,6 +692,68 @@ button:disabled {
   outline: 2px solid var(--brand);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  font-size: 20px;
+  color: var(--ink);
+  background: transparent;
+}
+
+.icon-button:active {
+  background: var(--surface-2);
+}
+
+.danger-icon {
+  color: var(--expense);
+}
+
+.center {
+  text-align: center;
+}
+
+.meal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3);
+  background: var(--surface);
+  border-radius: var(--r);
+  border-left: 3px solid var(--brand);
+}
+
+.meal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.meal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: 10px 0 2px;
+  text-align: left;
+  color: var(--ink);
+  border-top: 1px solid var(--line);
+}
+
 .sheet-section {
   margin: var(--sp-1) 0 0;
   font-size: 13px;

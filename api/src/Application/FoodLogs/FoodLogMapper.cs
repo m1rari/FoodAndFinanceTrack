@@ -8,6 +8,8 @@ public static class FoodLogMapper
         f.Id,
         f.DishName,
         f.UserContext,
+        f.PortionGrams,
+        f.MealGroupId,
         f.CaloriesMin,
         f.CaloriesMax,
         f.ProteinMinG,

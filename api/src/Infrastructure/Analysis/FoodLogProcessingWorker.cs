@@ -28,13 +28,13 @@ public sealed class FoodLogProcessingWorker : BackgroundService
     {
         await RecoverPendingAsync(stoppingToken);
 
-        await foreach (var foodLogId in _queue.ReadAllAsync(stoppingToken))
+        await foreach (var job in _queue.ReadAllAsync(stoppingToken))
         {
             try
             {
                 using var scope = _scopeFactory.CreateScope();
                 var processor = scope.ServiceProvider.GetRequiredService<IFoodLogProcessor>();
-                await processor.ProcessAsync(foodLogId, stoppingToken);
+                await processor.ProcessAsync(job.FoodLogId, job.Single, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -42,7 +42,7 @@ public sealed class FoodLogProcessingWorker : BackgroundService
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception, "Ошибка фоновой обработки блюда {FoodLogId}", foodLogId);
+                _logger.LogError(exception, "Ошибка фоновой обработки блюда {FoodLogId}", job.FoodLogId);
             }
         }
     }
@@ -61,7 +61,7 @@ public sealed class FoodLogProcessingWorker : BackgroundService
 
             foreach (var foodLogId in pending)
             {
-                await _queue.EnqueueAsync(foodLogId, cancellationToken);
+                await _queue.EnqueueAsync(foodLogId, cancellationToken: cancellationToken);
             }
 
             if (pending.Count > 0)

@@ -189,6 +189,22 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
   const calories = range(sum(logs.map((log) => log.caloriesMin)), sum(logs.map((log) => log.caloriesMax)))
   const hasCalories = logs.some((log) => log.caloriesMin != null || log.caloriesMax != null)
 
+  const mealGroups = new Map<string, FoodLogDto[]>()
+  const order: Array<{ type: 'single'; log: FoodLogDto } | { type: 'meal'; id: string }> = []
+
+  for (const log of logs) {
+    if (log.mealGroupId) {
+      if (!mealGroups.has(log.mealGroupId)) {
+        mealGroups.set(log.mealGroupId, [])
+        order.push({ type: 'meal', id: log.mealGroupId })
+      }
+
+      mealGroups.get(log.mealGroupId)!.push(log)
+    } else {
+      order.push({ type: 'single', log })
+    }
+  }
+
   return (
     <section className="screen">
       <header className="screen-header">
@@ -227,27 +243,48 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
       {!loading && logs.length === 0 && <p className="muted">За этот день блюд нет.</p>}
 
       <ul className="list">
-        {logs.map((log) => (
-          <li key={log.id}>
-            <button className="list-item is-neutral" onClick={() => onOpen(log.id)}>
-              <span className="list-main">
-                <span className="list-title">{log.dishName ?? 'Блюдо'}</span>
-                <span className="muted small">
-                  {formatTime(log.eatenAt)}
-                  {STATUS_LABELS[log.status] ? ` · ${STATUS_LABELS[log.status]}` : ''}
+        {order.map((entry) =>
+          entry.type === 'single' ? (
+            <li key={entry.log.id}>
+              <button className="list-item is-neutral" onClick={() => onOpen(entry.log.id)}>
+                <span className="list-main">
+                  <span className="list-title">{entry.log.dishName ?? 'Блюдо'}</span>
+                  <span className="muted small">
+                    {formatTime(entry.log.eatenAt)}
+                    {STATUS_LABELS[entry.log.status] ? ` · ${STATUS_LABELS[entry.log.status]}` : ''}
+                  </span>
                 </span>
-              </span>
-              <span className="list-right">
-                <span className="amount">
-                  {log.caloriesMin != null || log.caloriesMax != null
-                    ? `${range(log.caloriesMin, log.caloriesMax)} ккал`
-                    : '—'}
+                <span className="list-right">
+                  <span className="amount">
+                    {entry.log.caloriesMin != null || entry.log.caloriesMax != null
+                      ? `${range(entry.log.caloriesMin, entry.log.caloriesMax)} ккал`
+                      : '—'}
+                  </span>
+                  <span className="muted small">Открыть ›</span>
                 </span>
-                <span className="muted small">Открыть ›</span>
-              </span>
-            </button>
-          </li>
-        ))}
+              </button>
+            </li>
+          ) : (
+            <li key={entry.id} className="meal-card">
+              <div className="meal-head">
+                <span>Приём пищи</span>
+                <span className="muted small">{formatTime(mealGroups.get(entry.id)![0].eatenAt)}</span>
+              </div>
+              {mealGroups.get(entry.id)!.map((log) => (
+                <button key={log.id} className="meal-item" onClick={() => onOpen(log.id)}>
+                  <span className="list-title">{log.dishName ?? 'Блюдо'}</span>
+                  <span className="amount">
+                    {log.caloriesMin != null || log.caloriesMax != null
+                      ? `${range(log.caloriesMin, log.caloriesMax)} ккал`
+                      : log.portionGrams
+                        ? `${log.portionGrams} г`
+                        : '—'}
+                  </span>
+                </button>
+              ))}
+            </li>
+          ),
+        )}
       </ul>
 
       <BottomSheet open={menuOpen} title="Добавить блюдо" onClose={() => setMenuOpen(false)}>

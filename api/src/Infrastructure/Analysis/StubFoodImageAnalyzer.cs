@@ -18,6 +18,6 @@ public sealed class StubFoodImageAnalyzer : IFoodImageAnalyzer
             "AI-провайдер не настроен: блюдо {ImagePath} требует ручной оценки.",
             request.ImagePath);
 
-        return Task.FromResult(new FoodAnalysisResult());
+        return Task.FromResult(new FoodAnalysisResult(Array.Empty<FoodAnalysisItemResult>()));
     }
 }

@@ -134,6 +134,8 @@ export interface FoodLogDto {
   id: string
   dishName: string | null
   userContext: string | null
+  portionGrams: number | null
+  mealGroupId: string | null
   caloriesMin: number | null
   caloriesMax: number | null
   proteinMinG: number | null
@@ -175,6 +177,7 @@ export interface FoodShareDto {
 export interface UpdateFoodLogRequest {
   dishName?: string | null
   userContext?: string | null
+  portionGrams?: number | null
   caloriesMin?: number | null
   caloriesMax?: number | null
   proteinMinG?: number | null

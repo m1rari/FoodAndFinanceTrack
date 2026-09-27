@@ -37,7 +37,7 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
         _logger = logger;
     }
 
-    public async Task ProcessAsync(Guid foodLogId, CancellationToken cancellationToken = default)
+    public async Task ProcessAsync(Guid foodLogId, bool single = false, CancellationToken cancellationToken = default)
     {
         var log = await _db.FoodLogs.FirstOrDefaultAsync(f => f.Id == foodLogId, cancellationToken);
 
@@ -48,10 +48,10 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
 
         try
         {
-            var request = new FoodAnalysisRequest(log.ImagePath, log.Id.ToString(), log.UserContext);
+            var request = new FoodAnalysisRequest(log.ImagePath, log.Id.ToString(), log.UserContext, log.PortionGrams, single);
             var result = await _analyzer.AnalyzeAsync(request, cancellationToken);
 
-            ApplyResult(log, result);
+            ApplyResult(log, result, single);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -74,6 +74,81 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
         {
             await NotifyTelegramAsync(chatId, log, cancellationToken);
         }
+    }
+
+    private void ApplyResult(FoodLog log, FoodAnalysisResult result, bool single)
+    {
+        var items = result.Items;
+
+        if (items.Count == 0)
+        {
+            log.Status = ProcessingStatus.NeedsReview;
+            return;
+        }
+
+        if (single || items.Count == 1)
+        {
+            ApplyItem(log, items[0], result.RawResponse);
+            return;
+        }
+
+        var groupId = log.MealGroupId ?? Guid.NewGuid();
+        log.MealGroupId = groupId;
+        ApplyItem(log, items[0], result.RawResponse, groupId);
+
+        for (var index = 1; index < items.Count; index++)
+        {
+            var sibling = new FoodLog
+            {
+                UserId = log.UserId,
+                ImagePath = log.ImagePath,
+                UserContext = log.UserContext,
+                MealGroupId = groupId,
+                EatenAt = log.EatenAt
+            };
+
+            ApplyItem(sibling, items[index], null, groupId);
+            _db.FoodLogs.Add(sibling);
+        }
+    }
+
+    private void ApplyItem(FoodLog target, FoodAnalysisItemResult item, string? rawResponse, Guid? groupId = null)
+    {
+        var threshold = _aiOptions.ConfidenceThreshold;
+
+        target.DishName = string.IsNullOrWhiteSpace(item.DishName) ? null : item.DishName.Trim();
+
+        if (target.PortionGrams is not > 0 && item.PortionGrams is > 0)
+        {
+            target.PortionGrams = item.PortionGrams;
+        }
+
+        target.CaloriesMin = item.CaloriesMin;
+        target.CaloriesMax = item.CaloriesMax;
+        target.ProteinMinG = item.ProteinMinG;
+        target.ProteinMaxG = item.ProteinMaxG;
+        target.FatMinG = item.FatMinG;
+        target.FatMaxG = item.FatMaxG;
+        target.CarbsMinG = item.CarbsMinG;
+        target.CarbsMaxG = item.CarbsMaxG;
+        target.ProteinG = Midpoint(item.ProteinMinG, item.ProteinMaxG);
+        target.FatG = Midpoint(item.FatMinG, item.FatMaxG);
+        target.CarbsG = Midpoint(item.CarbsMinG, item.CarbsMaxG);
+        target.AiRawResponse = EnsureJson(rawResponse);
+
+        if (groupId is not null)
+        {
+            target.MealGroupId = groupId;
+        }
+
+        var hasDish = !string.IsNullOrWhiteSpace(target.DishName)
+            && !string.Equals(target.DishName, "Не определено", StringComparison.OrdinalIgnoreCase);
+        var hasCalories = target.CaloriesMin is > 0 || target.CaloriesMax is > 0;
+        var lowConfidence = item.Confidence is not null && item.Confidence < threshold;
+
+        target.Status = (hasDish || hasCalories) && !lowConfidence
+            ? ProcessingStatus.Processed
+            : ProcessingStatus.NeedsReview;
     }
 
     private async Task NotifyTelegramAsync(long chatId, FoodLog log, CancellationToken cancellationToken)
@@ -113,33 +188,6 @@ public sealed class FoodLogProcessor : IFoodLogProcessor
         }
 
         return low == high ? low : $"{low}–{high}";
-    }
-
-    private void ApplyResult(FoodLog log, FoodAnalysisResult result)
-    {
-        var threshold = _aiOptions.ConfidenceThreshold;
-
-        log.DishName = string.IsNullOrWhiteSpace(result.DishName) ? null : result.DishName.Trim();
-        log.CaloriesMin = result.CaloriesMin;
-        log.CaloriesMax = result.CaloriesMax;
-        log.ProteinMinG = result.ProteinMinG;
-        log.ProteinMaxG = result.ProteinMaxG;
-        log.FatMinG = result.FatMinG;
-        log.FatMaxG = result.FatMaxG;
-        log.CarbsMinG = result.CarbsMinG;
-        log.CarbsMaxG = result.CarbsMaxG;
-        log.ProteinG = Midpoint(result.ProteinMinG, result.ProteinMaxG);
-        log.FatG = Midpoint(result.FatMinG, result.FatMaxG);
-        log.CarbsG = Midpoint(result.CarbsMinG, result.CarbsMaxG);
-        log.AiRawResponse = EnsureJson(result.RawResponse);
-
-        var hasDish = !string.IsNullOrWhiteSpace(log.DishName)
-            && !string.Equals(log.DishName, "Не определено", StringComparison.OrdinalIgnoreCase);
-        var hasCalories = log.CaloriesMin is > 0 || log.CaloriesMax is > 0;
-        var hasData = hasDish || hasCalories;
-        var lowConfidence = result.Confidence is not null && result.Confidence < threshold;
-
-        log.Status = hasData && !lowConfidence ? ProcessingStatus.Processed : ProcessingStatus.NeedsReview;
     }
 
     internal static decimal? Midpoint(decimal? min, decimal? max)

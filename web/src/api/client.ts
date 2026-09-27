@@ -165,10 +165,10 @@ export const api = {
   updateFoodLog: (id: string, body: UpdateFoodLogRequest) =>
     request<FoodLogDto>(`/api/food-logs/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
 
-  reanalyzeFoodLog: (id: string, context?: string) =>
+  reanalyzeFoodLog: (id: string, context?: string, portionGrams?: number) =>
     request<FoodLogDto>(`/api/food-logs/${id}/reanalyze`, {
       method: 'POST',
-      body: JSON.stringify({ context: context ?? null }),
+      body: JSON.stringify({ context: context ?? null, portionGrams: portionGrams ?? null }),
     }),
 
   shareFoodLog: (id: string) =>

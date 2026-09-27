@@ -4,6 +4,8 @@ public sealed record FoodLogDto(
     Guid Id,
     string? DishName,
     string? UserContext,
+    decimal? PortionGrams,
+    Guid? MealGroupId,
     decimal? CaloriesMin,
     decimal? CaloriesMax,
     decimal? ProteinMinG,
@@ -25,6 +27,7 @@ public sealed record FoodLogImageDto(byte[] Content, string ContentType);
 public sealed record UpdateFoodLogRequest(
     string? DishName = null,
     string? UserContext = null,
+    decimal? PortionGrams = null,
     decimal? CaloriesMin = null,
     decimal? CaloriesMax = null,
     decimal? ProteinMinG = null,
@@ -35,6 +38,6 @@ public sealed record UpdateFoodLogRequest(
     decimal? CarbsMaxG = null,
     DateTimeOffset? EatenAt = null);
 
-public sealed record ReanalyzeFoodLogRequest(string? Context = null);
+public sealed record ReanalyzeFoodLogRequest(string? Context = null, decimal? PortionGrams = null);
 
 public sealed record CreateFoodLogTextRequest(string Context);

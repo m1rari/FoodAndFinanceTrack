@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.FoodLogs.Analysis;
@@ -12,24 +13,27 @@ public sealed class OpenCodeGoFoodImageAnalyzer : IFoodImageAnalyzer
     };
 
     private const string SystemPrompt = """
-        Ты — нутрициолог. По фотографии оцени блюдо и верни СТРОГО один валидный JSON-объект
-        без markdown, пояснений и текста вокруг.
-        Схема:
+        Ты — нутрициолог. По фотографии приёма пищи выдели КАЖДОЕ отдельное блюдо/компонент
+        (например "борщ", "пюре", "курица") и верни СТРОГО один валидный JSON без markdown:
         {
-          "dish_name": string,
-          "calories_min": number,
-          "calories_max": number,
-          "protein_min_g": number,
-          "protein_max_g": number,
-          "fat_min_g": number,
-          "fat_max_g": number,
-          "carbs_min_g": number,
-          "carbs_max_g": number,
-          "confidence": number от 0 до 1,
-          "raw_text": string
+          "items": [
+            {
+              "dish_name": string,
+              "portion_grams": number,
+              "calories_min": number, "calories_max": number,
+              "protein_min_g": number, "protein_max_g": number,
+              "fat_min_g": number, "fat_max_g": number,
+              "carbs_min_g": number, "carbs_max_g": number,
+              "confidence": number от 0 до 1
+            }
+          ]
         }
-        Все значения — оценка диапазоном (min/max), калории в ккал, БЖУ в граммах.
-        Если блюдо не видно — "dish_name": "Не определено", числовые значения 0.
+        Правила:
+        - Если на фото несколько блюд — верни их ОТДЕЛЬНЫМИ элементами. Не объединяй "борщ и пюре с курицей" в один.
+        - portion_grams — примерная масса порции в граммах (оценка).
+        - Все значения — оценка диапазоном (min/max): калории в ккал, БЖУ в граммах.
+        - Если пользователь указал массу порции — используй её.
+        - Если блюдо не видно — один элемент: "dish_name": "Не определено", числовые значения 0.
         """;
 
     private readonly OpenCodeGoVisionClient _client;
@@ -44,43 +48,58 @@ public sealed class OpenCodeGoFoodImageAnalyzer : IFoodImageAnalyzer
     public async Task<FoodAnalysisResult> AnalyzeAsync(FoodAnalysisRequest request, CancellationToken cancellationToken = default)
     {
         var dataUrl = await BuildDataUrlAsync(request.ImagePath, cancellationToken);
-        var context = request.Context?.Trim();
+        var userText = BuildUserText(request, dataUrl is null);
 
-        var userText = dataUrl is null
-            ? $"Оцени блюдо по описанию пользователя и верни JSON по заданной схеме. Описание: {context}"
-            : string.IsNullOrWhiteSpace(context)
-                ? "Оцени блюдо на изображении и верни JSON по заданной схеме."
-                : $"Оцени блюдо на изображении и верни JSON по заданной схеме. " +
-                  $"Контекст от пользователя (учитывай при оценке): {context}";
-
-        var content = await _client.CompleteJsonAsync(
-            SystemPrompt,
-            userText,
-            dataUrl,
-            request.SessionId,
-            cancellationToken);
-
+        var content = await _client.CompleteJsonAsync(SystemPrompt, userText, dataUrl, request.SessionId, cancellationToken);
         var payload = ParsePayload(content);
 
-        if (payload is null)
+        if (payload?.Items is null)
         {
-            return new FoodAnalysisResult(RawResponse: SafeJson(content), RawText: content);
+            return new FoodAnalysisResult(Array.Empty<FoodAnalysisItemResult>(), content, SafeJson(content));
         }
 
-        return new FoodAnalysisResult(
-            payload.DishName,
-            payload.CaloriesMin,
-            payload.CaloriesMax,
-            payload.ProteinMinG,
-            payload.ProteinMaxG,
-            payload.FatMinG,
-            payload.FatMaxG,
-            payload.CarbsMinG,
-            payload.CarbsMaxG,
-            payload.Confidence,
-            payload.RawText,
-            SafeJson(content));
+        var items = payload.Items.Select(Map).ToList();
+        return new FoodAnalysisResult(items, null, SafeJson(content));
     }
+
+    private static string BuildUserText(FoodAnalysisRequest request, bool textOnly)
+    {
+        var parts = new List<string>();
+
+        parts.Add(textOnly
+            ? "Оцени блюдо по описанию пользователя и верни JSON по схеме."
+            : "Оцени блюда на изображении и верни JSON по схеме.");
+
+        if (request.SingleItem)
+        {
+            parts.Add("Верни ровно ОДИН элемент для описанного блюда.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Context))
+        {
+            parts.Add($"Контекст: {request.Context.Trim()}.");
+        }
+
+        if (request.PortionGrams is > 0)
+        {
+            parts.Add($"Масса порции: {request.PortionGrams.Value.ToString("0.#", CultureInfo.InvariantCulture)} г.");
+        }
+
+        return string.Join(" ", parts);
+    }
+
+    private static FoodAnalysisItemResult Map(FoodPayloadItem item) => new(
+        item.DishName,
+        item.PortionGrams,
+        item.CaloriesMin,
+        item.CaloriesMax,
+        item.ProteinMinG,
+        item.ProteinMaxG,
+        item.FatMinG,
+        item.FatMaxG,
+        item.CarbsMinG,
+        item.CarbsMaxG,
+        item.Confidence);
 
     private async Task<string?> BuildDataUrlAsync(string imagePath, CancellationToken cancellationToken)
     {

@@ -50,12 +50,15 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [isFavorite, setIsFavorite] = useState(false)
   const [sharing, setSharing] = useState(false)
+
+  const [menuOpen, setMenuOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const [dishName, setDishName] = useState('')
+  const [portionGrams, setPortionGrams] = useState('')
   const [context, setContext] = useState('')
   const [calMin, setCalMin] = useState('')
   const [calMax, setCalMax] = useState('')
@@ -184,12 +187,40 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
     }
   }
 
+  async function handleShare() {
+    if (!log) {
+      return
+    }
+
+    setSharing(true)
+    setError(null)
+
+    try {
+      const share = await api.shareFoodLog(log.id)
+
+      if (!share.url) {
+        setError('Шаринг недоступен: не настроено имя бота.')
+        return
+      }
+
+      const text = `Блюдо: ${log.dishName ?? 'блюдо'}`
+      openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(share.url)}&text=${encodeURIComponent(text)}`)
+      haptic('success')
+      setMenuOpen(false)
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось поделиться блюдом')
+    } finally {
+      setSharing(false)
+    }
+  }
+
   function openEditor() {
     if (!log) {
       return
     }
 
     setDishName(log.dishName ?? '')
+    setPortionGrams(log.portionGrams != null ? String(log.portionGrams) : '')
     setContext(log.userContext ?? '')
     setCalMin(log.caloriesMin != null ? String(log.caloriesMin) : '')
     setCalMax(log.caloriesMax != null ? String(log.caloriesMax) : '')
@@ -216,6 +247,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
     const body: UpdateFoodLogRequest = {
       dishName: dishName.trim() === '' ? undefined : dishName.trim(),
       userContext: context,
+      portionGrams: parseNumber(portionGrams),
       caloriesMin: parseNumber(calMin),
       caloriesMax: parseNumber(calMax),
       proteinMinG: parseNumber(proteinMin),
@@ -240,7 +272,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
     }
   }
 
-  async function handleReanalyze(useContext: boolean) {
+  async function handleReanalyze() {
     if (!log) {
       return
     }
@@ -249,7 +281,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
     setError(null)
 
     try {
-      const updated = await api.reanalyzeFoodLog(log.id, useContext ? context : undefined)
+      const updated = await api.reanalyzeFoodLog(log.id, context, parseNumber(portionGrams))
       setLog(updated)
       setEditOpen(false)
       onChanged()
@@ -257,32 +289,6 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
       setError(err instanceof ApiError ? err.message : 'Не удалось запустить повторный анализ')
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleShare() {
-    if (!log) {
-      return
-    }
-
-    setSharing(true)
-    setError(null)
-
-    try {
-      const share = await api.shareFoodLog(log.id)
-
-      if (!share.url) {
-        setError('Шаринг недоступен: не настроено имя бота.')
-        return
-      }
-
-      const text = `Блюдо: ${log.dishName ?? 'блюдо'}`
-      openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(share.url)}&text=${encodeURIComponent(text)}`)
-      haptic('success')
-    } catch (err: unknown) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось поделиться блюдом')
-    } finally {
-      setSharing(false)
     }
   }
 
@@ -309,10 +315,17 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
     <section className="screen">
       <header className="screen-header">
         <button className="ghost back" onClick={onBack}>
-          ‹ Назад
+          ‹
         </button>
-        <h1>Блюдо</h1>
-        <span />
+        <h1>{log?.dishName ?? 'Блюдо'}</h1>
+        <div className="header-actions">
+          <button className="icon-button" onClick={toggleFavorite} aria-label="В избранное">
+            {isFavorite ? '★' : '☆'}
+          </button>
+          <button className="icon-button" onClick={() => setMenuOpen(true)} aria-label="Ещё">
+            ⋯
+          </button>
+        </div>
       </header>
 
       {loading && <p className="muted">Загрузка…</p>}
@@ -329,57 +342,74 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
             <img className="receipt-image" src={previewUrl} alt="Блюдо" loading="lazy" decoding="async" />
           )}
 
-          <div className="purchase-head">
-            <div>
-              <strong>{log.dishName ?? 'Блюдо'}</strong>
-              <div className="muted small">
-                {formatDate(log.eatenAt)} · {formatTime(log.eatenAt)}
-              </div>
-            </div>
-            <span className="amount">{range(log.caloriesMin, log.caloriesMax)} ккал</span>
+          <div className="card">
+            <span className="muted small">Калории (оценка)</span>
+            <strong>{range(log.caloriesMin, log.caloriesMax)} ккал</strong>
+            {log.portionGrams != null && <span className="muted small">Порция ≈ {log.portionGrams} г</span>}
           </div>
 
           <div className="macro-grid">
             <div className="card">
-              <span className="muted small">Белки (оценка)</span>
+              <span className="muted small">Белки</span>
               <strong>{range(log.proteinMinG, log.proteinMaxG)} г</strong>
             </div>
             <div className="card">
-              <span className="muted small">Жиры (оценка)</span>
+              <span className="muted small">Жиры</span>
               <strong>{range(log.fatMinG, log.fatMaxG)} г</strong>
             </div>
             <div className="card">
-              <span className="muted small">Углеводы (оценка)</span>
+              <span className="muted small">Углеводы</span>
               <strong>{range(log.carbsMinG, log.carbsMaxG)} г</strong>
             </div>
           </div>
 
           {log.userContext && (
             <div className="card">
-              <span className="muted small">Контекст</span>
+              <span className="muted small">Описание</span>
               <span>{log.userContext}</span>
             </div>
           )}
 
+          <p className="muted small center">
+            {formatDate(log.eatenAt)} · {formatTime(log.eatenAt)}
+          </p>
+
           <button className="primary" onClick={openEditor}>
             Скорректировать
-          </button>
-          <button className="ghost" onClick={toggleFavorite}>
-            {isFavorite ? 'Убрать из избранного' : 'В избранное'}
-          </button>
-          <button className="ghost" disabled={sharing} onClick={handleShare}>
-            {sharing ? 'Подготовка…' : 'Поделиться'}
-          </button>
-          <button className="ghost" disabled={saving} onClick={() => handleReanalyze(false)}>
-            Распознать заново
-          </button>
-          <button className="danger" onClick={() => setDeleteOpen(true)}>
-            Удалить блюдо
           </button>
         </>
       )}
 
-      <BottomSheet open={editOpen} title="Коррекция оценки" onClose={() => setEditOpen(false)}>
+      <BottomSheet open={menuOpen} title="Ещё" onClose={() => setMenuOpen(false)}>
+        <button className="action-card" disabled={sharing} onClick={handleShare}>
+          <span className="action-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="M8.6 10.6l6.8-3.2M8.6 13.4l6.8 3.2" />
+            </svg>
+          </span>
+          <span className="action-text">
+            <strong>{sharing ? 'Подготовка…' : 'Поделиться'}</strong>
+            <span className="muted small">Отправить блюдо другому</span>
+          </span>
+        </button>
+
+        <button className="action-card" onClick={() => { setMenuOpen(false); setDeleteOpen(true) }}>
+          <span className="action-icon danger-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+            </svg>
+          </span>
+          <span className="action-text">
+            <strong>Удалить блюдо</strong>
+            <span className="muted small">Фото и оценка будут удалены</span>
+          </span>
+        </button>
+      </BottomSheet>
+
+      <BottomSheet open={editOpen} title="Скорректировать" onClose={() => setEditOpen(false)}>
         <form className="form" onSubmit={handleSave}>
           <label className="field">
             <span>Название</span>
@@ -387,7 +417,18 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
           </label>
 
           <label className="field">
-            <span>Контекст для AI (необязательно)</span>
+            <span>Граммовка, г</span>
+            <input
+              inputMode="decimal"
+              enterKeyHint="done"
+              value={portionGrams}
+              onChange={(event) => setPortionGrams(event.target.value)}
+              placeholder="например 250"
+            />
+          </label>
+
+          <label className="field">
+            <span>Описание / контекст</span>
             <textarea
               className="textarea"
               rows={3}
@@ -400,44 +441,44 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
           <div className="item-grid">
             <label className="field">
               <span>Ккал от</span>
-              <input inputMode="decimal" enterKeyHint="done" value={calMin} onChange={(event) => setCalMin(event.target.value)} />
+              <input inputMode="decimal" value={calMin} onChange={(event) => setCalMin(event.target.value)} />
             </label>
             <label className="field">
               <span>Ккал до</span>
-              <input inputMode="decimal" enterKeyHint="done" value={calMax} onChange={(event) => setCalMax(event.target.value)} />
+              <input inputMode="decimal" value={calMax} onChange={(event) => setCalMax(event.target.value)} />
             </label>
           </div>
 
           <div className="item-grid">
             <label className="field">
               <span>Белки от</span>
-              <input inputMode="decimal" enterKeyHint="done" value={proteinMin} onChange={(event) => setProteinMin(event.target.value)} />
+              <input inputMode="decimal" value={proteinMin} onChange={(event) => setProteinMin(event.target.value)} />
             </label>
             <label className="field">
               <span>Белки до</span>
-              <input inputMode="decimal" enterKeyHint="done" value={proteinMax} onChange={(event) => setProteinMax(event.target.value)} />
+              <input inputMode="decimal" value={proteinMax} onChange={(event) => setProteinMax(event.target.value)} />
             </label>
           </div>
 
           <div className="item-grid">
             <label className="field">
               <span>Жиры от</span>
-              <input inputMode="decimal" enterKeyHint="done" value={fatMin} onChange={(event) => setFatMin(event.target.value)} />
+              <input inputMode="decimal" value={fatMin} onChange={(event) => setFatMin(event.target.value)} />
             </label>
             <label className="field">
               <span>Жиры до</span>
-              <input inputMode="decimal" enterKeyHint="done" value={fatMax} onChange={(event) => setFatMax(event.target.value)} />
+              <input inputMode="decimal" value={fatMax} onChange={(event) => setFatMax(event.target.value)} />
             </label>
           </div>
 
           <div className="item-grid">
             <label className="field">
               <span>Углеводы от</span>
-              <input inputMode="decimal" enterKeyHint="done" value={carbsMin} onChange={(event) => setCarbsMin(event.target.value)} />
+              <input inputMode="decimal" value={carbsMin} onChange={(event) => setCarbsMin(event.target.value)} />
             </label>
             <label className="field">
               <span>Углеводы до</span>
-              <input inputMode="decimal" enterKeyHint="done" value={carbsMax} onChange={(event) => setCarbsMax(event.target.value)} />
+              <input inputMode="decimal" value={carbsMax} onChange={(event) => setCarbsMax(event.target.value)} />
             </label>
           </div>
 
@@ -446,8 +487,8 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
             <input type="datetime-local" value={eatenAt} onChange={(event) => setEatenAt(event.target.value)} />
           </label>
 
-          <button type="button" className="ghost" disabled={saving} onClick={() => handleReanalyze(true)}>
-            Распознать заново с этим контекстом
+          <button type="button" className="ghost" disabled={saving} onClick={handleReanalyze}>
+            Распознать заново (с граммовкой и контекстом)
           </button>
 
           <div className="actions">

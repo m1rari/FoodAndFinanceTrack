@@ -45,7 +45,7 @@ public sealed class FoodLogService : IFoodLogService
         _db.FoodLogs.Add(log);
         await _db.SaveChangesAsync(cancellationToken);
 
-        await _queue.EnqueueAsync(log.Id, cancellationToken);
+        await _queue.EnqueueAsync(log.Id, cancellationToken: cancellationToken);
 
         return FoodLogMapper.ToDto(log);
     }
@@ -70,7 +70,7 @@ public sealed class FoodLogService : IFoodLogService
         _db.FoodLogs.Add(log);
         await _db.SaveChangesAsync(cancellationToken);
 
-        await _queue.EnqueueAsync(log.Id, cancellationToken);
+        await _queue.EnqueueAsync(log.Id, cancellationToken: cancellationToken);
 
         return FoodLogMapper.ToDto(log);
     }
@@ -124,6 +124,16 @@ public sealed class FoodLogService : IFoodLogService
             log.UserContext = Normalize(request.UserContext);
         }
 
+        if (request.PortionGrams is not null)
+        {
+            if (request.PortionGrams < 0)
+            {
+                throw new ValidationException("Масса не может быть отрицательной.");
+            }
+
+            log.PortionGrams = request.PortionGrams;
+        }
+
         log.CaloriesMin = request.CaloriesMin ?? log.CaloriesMin;
         log.CaloriesMax = request.CaloriesMax ?? log.CaloriesMax;
         log.ProteinMinG = request.ProteinMinG ?? log.ProteinMinG;
@@ -152,17 +162,23 @@ public sealed class FoodLogService : IFoodLogService
     public async Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
     {
         var log = await GetAsync(userId, id, cancellationToken);
+        var imagePath = log.ImagePath;
 
         _db.FoodLogs.Remove(log);
         await _db.SaveChangesAsync(cancellationToken);
 
-        if (_fileStorage.Exists(log.ImagePath))
+        if (!string.IsNullOrWhiteSpace(imagePath) && _fileStorage.Exists(imagePath))
         {
-            await _fileStorage.DeleteAsync(log.ImagePath, cancellationToken);
+            var stillReferenced = await _db.FoodLogs.AnyAsync(f => f.ImagePath == imagePath, cancellationToken);
+
+            if (!stillReferenced)
+            {
+                await _fileStorage.DeleteAsync(imagePath, cancellationToken);
+            }
         }
     }
 
-    public async Task<FoodLogDto> ReanalyzeAsync(Guid userId, Guid id, string? context, CancellationToken cancellationToken = default)
+    public async Task<FoodLogDto> ReanalyzeAsync(Guid userId, Guid id, string? context, decimal? portionGrams = null, CancellationToken cancellationToken = default)
     {
         var log = await GetAsync(userId, id, cancellationToken);
 
@@ -171,9 +187,19 @@ public sealed class FoodLogService : IFoodLogService
             log.UserContext = Normalize(context);
         }
 
+        if (portionGrams is not null)
+        {
+            if (portionGrams < 0)
+            {
+                throw new ValidationException("Масса не может быть отрицательной.");
+            }
+
+            log.PortionGrams = portionGrams;
+        }
+
         log.Status = ProcessingStatus.Pending;
         await _db.SaveChangesAsync(cancellationToken);
-        await _queue.EnqueueAsync(log.Id, cancellationToken);
+        await _queue.EnqueueAsync(log.Id, single: true, cancellationToken);
 
         return FoodLogMapper.ToDto(log);
     }

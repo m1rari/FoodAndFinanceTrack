@@ -105,7 +105,7 @@ public sealed class FoodLogsController : ControllerBase
 
     [HttpPost("{id:guid}/reanalyze")]
     public async Task<ActionResult<FoodLogDto>> Reanalyze(Guid id, [FromBody] ReanalyzeFoodLogRequest request, CancellationToken cancellationToken)
-        => Ok(await _foodLogs.ReanalyzeAsync(_currentUser.UserId, id, request.Context, cancellationToken));
+        => Ok(await _foodLogs.ReanalyzeAsync(_currentUser.UserId, id, request.Context, request.PortionGrams, cancellationToken));
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

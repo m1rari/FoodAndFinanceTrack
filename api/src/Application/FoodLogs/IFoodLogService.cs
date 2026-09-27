@@ -16,5 +16,5 @@ public interface IFoodLogService
 
     Task DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
 
-    Task<FoodLogDto> ReanalyzeAsync(Guid userId, Guid id, string? context, CancellationToken cancellationToken = default);
+    Task<FoodLogDto> ReanalyzeAsync(Guid userId, Guid id, string? context, decimal? portionGrams = null, CancellationToken cancellationToken = default);
 }

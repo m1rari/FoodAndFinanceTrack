@@ -40,19 +40,19 @@ public sealed class FoodLogServiceTests
 
     private sealed class FakeQueue : IFoodLogProcessingQueue
     {
-        public List<Guid> Enqueued { get; } = new();
+        public List<FoodLogJob> Enqueued { get; } = new();
 
-        public ValueTask EnqueueAsync(Guid foodLogId, CancellationToken cancellationToken = default)
+        public ValueTask EnqueueAsync(Guid foodLogId, bool single = false, CancellationToken cancellationToken = default)
         {
-            Enqueued.Add(foodLogId);
+            Enqueued.Add(new FoodLogJob(foodLogId, single));
             return ValueTask.CompletedTask;
         }
 
-        public async IAsyncEnumerable<Guid> ReadAllAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<FoodLogJob> ReadAllAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            foreach (var id in Enqueued)
+            foreach (var job in Enqueued)
             {
-                yield return id;
+                yield return job;
             }
 
             await Task.CompletedTask;
@@ -80,7 +80,7 @@ public sealed class FoodLogServiceTests
         var result = await service.CreateAsync(userId, JpegBytes, "dish.jpg");
 
         Assert.Equal("Pending", result.Status);
-        Assert.Contains(result.Id, queue.Enqueued);
+        Assert.Contains(queue.Enqueued, job => job.FoodLogId == result.Id);
         var log = await db.FoodLogs.FindAsync(result.Id);
         Assert.NotNull(log);
         Assert.True(storage.Exists(log!.ImagePath));
@@ -113,7 +113,7 @@ public sealed class FoodLogServiceTests
 
         Assert.Equal("Pending", result.Status);
         Assert.Equal("борщ со сметаной", result.UserContext);
-        Assert.Contains(created.Id, queue.Enqueued);
+        Assert.Contains(queue.Enqueued, job => job.FoodLogId == created.Id && job.Single);
     }
 
     [Fact]

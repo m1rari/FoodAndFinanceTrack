@@ -4,8 +4,17 @@ namespace FinanceFoodTracker.Infrastructure.Analysis;
 
 internal sealed class FoodPayload
 {
+    [JsonPropertyName("items")]
+    public List<FoodPayloadItem>? Items { get; set; }
+}
+
+internal sealed class FoodPayloadItem
+{
     [JsonPropertyName("dish_name")]
     public string? DishName { get; set; }
+
+    [JsonPropertyName("portion_grams")]
+    public decimal? PortionGrams { get; set; }
 
     [JsonPropertyName("calories_min")]
     public decimal? CaloriesMin { get; set; }
@@ -33,7 +42,4 @@ internal sealed class FoodPayload
 
     [JsonPropertyName("confidence")]
     public decimal? Confidence { get; set; }
-
-    [JsonPropertyName("raw_text")]
-    public string? RawText { get; set; }
 }
