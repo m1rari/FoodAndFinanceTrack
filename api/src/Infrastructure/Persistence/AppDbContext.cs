@@ -19,6 +19,7 @@ public sealed class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<FoodLog> FoodLogs => Set<FoodLog>();
     public DbSet<SavedDish> SavedDishes => Set<SavedDish>();
     public DbSet<Statement> Statements => Set<Statement>();
+    public DbSet<FoodShare> FoodShares => Set<FoodShare>();
     public DbSet<CategoryRule> CategoryRules => Set<CategoryRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

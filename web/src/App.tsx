@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react'
 import { api, ApiError, setInitData } from './api/client'
 import type { TransactionDto, UserDto } from './api/types'
 import { initTelegram } from './telegram/init'
-import { haptic } from './telegram/telegram'
+import { getStartParam, haptic } from './telegram/telegram'
 import { useBackButton } from './hooks/useBackButton'
 import OperationsScreen from './screens/OperationsScreen'
 import AddScreen from './screens/AddScreen'
@@ -51,6 +51,49 @@ export default function App() {
       })
       .finally(() => setLoading(false))
   }, [context])
+
+  useEffect(() => {
+    if (!user) {
+      return
+    }
+
+    const param = getStartParam()
+
+    if (!param.startsWith('fd-')) {
+      return
+    }
+
+    const token = param.slice(3)
+    const storageKey = 'fft-claimed-shares'
+    let claimed: string[] = []
+
+    try {
+      claimed = JSON.parse(localStorage.getItem(storageKey) ?? '[]') as string[]
+    } catch {
+      claimed = []
+    }
+
+    if (claimed.includes(token)) {
+      return
+    }
+
+    api
+      .claimFoodShare(token)
+      .then((log) => {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify([...claimed, token]))
+        } catch {
+          // localStorage может быть недоступен
+        }
+
+        haptic('success')
+        setRefreshKey((value) => value + 1)
+        setFoodId(log.id)
+      })
+      .catch(() => {
+        // ссылка недействительна — молча игнорируем
+      })
+  }, [user])
 
   const overlayOpen =
     manualOpen || editing !== null || purchaseId !== null || foodId !== null || statementId !== null

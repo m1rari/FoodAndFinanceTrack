@@ -3,6 +3,7 @@ import type {
   CreateReceiptItemRequest,
   CreateTransactionRequest,
   FoodLogDto,
+  FoodShareDto,
   ReceiptDto,
   ReceiptSummaryDto,
   ReportSummaryDto,
@@ -169,6 +170,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ context: context ?? null }),
     }),
+
+  shareFoodLog: (id: string) =>
+    request<FoodShareDto>(`/api/food-logs/${id}/share`, { method: 'POST' }),
+
+  claimFoodShare: (token: string) =>
+    request<FoodLogDto>(`/api/food-shares/${encodeURIComponent(token)}/claim`, { method: 'POST' }),
 
   deleteFoodLog: (id: string) => request<void>(`/api/food-logs/${id}`, { method: 'DELETE' }),
 

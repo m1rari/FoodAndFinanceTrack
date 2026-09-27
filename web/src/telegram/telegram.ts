@@ -1,7 +1,9 @@
 export interface TelegramWebApp {
   initData?: string
+  initDataUnsafe?: { start_param?: string }
   version?: string
   colorScheme?: string
+  openTelegramLink?: (url: string) => void
   ready?: () => void
   expand?: () => void
   close?: () => void
@@ -53,6 +55,21 @@ export function isTelegram(): boolean {
 
 export function isMainButtonAvailable(): boolean {
   return Boolean(getWebApp()?.MainButton)
+}
+
+export function getStartParam(): string {
+  return getWebApp()?.initDataUnsafe?.start_param ?? ''
+}
+
+export function openTelegramLink(url: string): void {
+  const app = getWebApp()
+
+  if (app?.openTelegramLink) {
+    app.openTelegramLink(url)
+    return
+  }
+
+  window.open(url, '_blank')
 }
 
 export function initializeTelegramUi(): void {

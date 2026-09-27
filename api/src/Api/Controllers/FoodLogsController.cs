@@ -1,6 +1,7 @@
 using FinanceFoodTracker.Application.Common.Exceptions;
 using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.FoodLogs;
+using FinanceFoodTracker.Application.FoodShares;
 using FinanceFoodTracker.Application.SavedDishes;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,12 +15,18 @@ public sealed class FoodLogsController : ControllerBase
 
     private readonly IFoodLogService _foodLogs;
     private readonly ISavedDishService _savedDishes;
+    private readonly IFoodShareService _shares;
     private readonly ICurrentUser _currentUser;
 
-    public FoodLogsController(IFoodLogService foodLogs, ISavedDishService savedDishes, ICurrentUser currentUser)
+    public FoodLogsController(
+        IFoodLogService foodLogs,
+        ISavedDishService savedDishes,
+        IFoodShareService shares,
+        ICurrentUser currentUser)
     {
         _foodLogs = foodLogs;
         _savedDishes = savedDishes;
+        _shares = shares;
         _currentUser = currentUser;
     }
 
@@ -91,6 +98,10 @@ public sealed class FoodLogsController : ControllerBase
     [HttpPatch("{id:guid}")]
     public async Task<ActionResult<FoodLogDto>> Update(Guid id, [FromBody] UpdateFoodLogRequest request, CancellationToken cancellationToken)
         => Ok(await _foodLogs.UpdateAsync(_currentUser.UserId, id, request, cancellationToken));
+
+    [HttpPost("{id:guid}/share")]
+    public async Task<ActionResult<FoodShareDto>> Share(Guid id, CancellationToken cancellationToken)
+        => Ok(await _shares.CreateAsync(_currentUser.UserId, id, cancellationToken));
 
     [HttpPost("{id:guid}/reanalyze")]
     public async Task<ActionResult<FoodLogDto>> Reanalyze(Guid id, [FromBody] ReanalyzeFoodLogRequest request, CancellationToken cancellationToken)

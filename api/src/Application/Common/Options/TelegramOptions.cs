@@ -11,4 +11,6 @@ public sealed class TelegramOptions
     public string WebhookSecret { get; set; } = string.Empty;
 
     public string PublicBaseUrl { get; set; } = string.Empty;
+
+    public string BotUsername { get; set; } = string.Empty;
 }

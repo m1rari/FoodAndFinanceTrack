@@ -35,6 +35,7 @@ services:
       - Telegram__InitDataTtl=${INIT_DATA_TTL:-24:00:00}
       - Telegram__WebhookSecret=${TELEGRAM_WEBHOOK_SECRET:-}
       - Telegram__PublicBaseUrl=${PUBLIC_BASE_URL:-}
+      - Telegram__BotUsername=${BOT_USERNAME:-}
       - OpenCodeGo__ApiKey=${OPENCODE_GO_KEY}
       - OpenCodeGo__Model=${AI_MODEL:-deepseek-v4-flash-vision-exp}
       - OpenCodeGo__TextModel=${AI_TEXT_MODEL:-deepseek-v4.1-flash}

@@ -167,6 +167,11 @@ export interface SavedDishDto {
   lastUsedAt: string
 }
 
+export interface FoodShareDto {
+  token: string
+  url: string | null
+}
+
 export interface UpdateFoodLogRequest {
   dishName?: string | null
   userContext?: string | null

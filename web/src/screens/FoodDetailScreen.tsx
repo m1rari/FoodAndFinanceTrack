@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { api, ApiError, fetchFoodImage } from '../api/client'
 import type { FoodLogDto, UpdateFoodLogRequest } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
-import { haptic } from '../telegram/telegram'
+import { haptic, openTelegramLink } from '../telegram/telegram'
 import { formatDate, formatTime } from '../utils/format'
 
 interface Props {
@@ -49,6 +49,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isFavorite, setIsFavorite] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -259,6 +260,32 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
     }
   }
 
+  async function handleShare() {
+    if (!log) {
+      return
+    }
+
+    setSharing(true)
+    setError(null)
+
+    try {
+      const share = await api.shareFoodLog(log.id)
+
+      if (!share.url) {
+        setError('Шаринг недоступен: не настроено имя бота.')
+        return
+      }
+
+      const text = `Блюдо: ${log.dishName ?? 'блюдо'}`
+      openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(share.url)}&text=${encodeURIComponent(text)}`)
+      haptic('success')
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось поделиться блюдом')
+    } finally {
+      setSharing(false)
+    }
+  }
+
   async function handleDelete() {
     if (!log) {
       return
@@ -339,6 +366,9 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
           </button>
           <button className="ghost" onClick={toggleFavorite}>
             {isFavorite ? 'Убрать из избранного' : 'В избранное'}
+          </button>
+          <button className="ghost" disabled={sharing} onClick={handleShare}>
+            {sharing ? 'Подготовка…' : 'Поделиться'}
           </button>
           <button className="ghost" disabled={saving} onClick={() => handleReanalyze(false)}>
             Распознать заново
