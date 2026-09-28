@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using FinanceFoodTracker.Application.Statements.Analysis;
 
@@ -6,6 +7,9 @@ namespace FinanceFoodTracker.Infrastructure.Analysis;
 
 public sealed class OpenCodeGoStatementAnalyzer : IStatementAnalyzer
 {
+    private const int MaxChunkChars = 8000;
+    private const int MaxParallel = 3;
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -20,32 +24,59 @@ public sealed class OpenCodeGoStatementAnalyzer : IStatementAnalyzer
 
     public async Task<StatementAnalysisResult> AnalyzeAsync(StatementAnalysisRequest request, CancellationToken cancellationToken = default)
     {
-        var content = await _client.CompleteJsonAsync(
-            BuildSystemPrompt(request),
-            $"Разбери банковскую выписку и верни JSON по заданной схеме.\n\nТекст выписки:\n{request.Text}",
-            null,
-            request.SessionId,
-            cancellationToken);
+        var chunks = Chunk(request.Text, MaxChunkChars);
+        var systemPrompt = BuildSystemPrompt(request);
+        var results = new StatementPayload?[chunks.Count];
+        var throttle = new SemaphoreSlim(MaxParallel);
 
-        var payload = ParsePayload(content);
-
-        if (payload?.Operations is null)
+        var tasks = chunks.Select(async (chunk, index) =>
         {
-            return new StatementAnalysisResult(null, null, null, Array.Empty<StatementOperationResult>(), content);
+            await throttle.WaitAsync(cancellationToken);
+            try
+            {
+                var content = await _client.CompleteJsonAsync(
+                    systemPrompt,
+                    $"Разбери банковскую выписку (часть {index + 1} из {chunks.Count}) и верни JSON по схеме.\n\nТекст выписки:\n{chunk}",
+                    null,
+                    $"{request.SessionId}-{index}",
+                    cancellationToken);
+
+                results[index] = ParsePayload(content);
+            }
+            finally
+            {
+                throttle.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+
+        var operations = new List<StatementOperationResult>();
+        string? currency = null;
+        decimal? opening = null;
+        decimal? closing = null;
+        string? rawResponse = null;
+
+        foreach (var payload in results)
+        {
+            if (payload is null)
+            {
+                continue;
+            }
+
+            currency ??= payload.Currency;
+            opening ??= payload.OpeningBalance;
+            closing ??= payload.ClosingBalance;
+
+            if (payload.Operations is not null)
+            {
+                operations.AddRange(payload.Operations.Select(Map).Where(item => item is not null).Select(item => item!));
+            }
+
+            rawResponse = JsonSerializer.Serialize(results);
         }
 
-        var operations = payload.Operations
-            .Select(Map)
-            .Where(operation => operation is not null)
-            .Select(operation => operation!)
-            .ToList();
-
-        return new StatementAnalysisResult(
-            payload.Currency,
-            payload.OpeningBalance,
-            payload.ClosingBalance,
-            operations,
-            content);
+        return new StatementAnalysisResult(currency, opening, closing, operations, rawResponse);
     }
 
     private static string BuildSystemPrompt(StatementAnalysisRequest request)
@@ -78,18 +109,20 @@ public sealed class OpenCodeGoStatementAnalyzer : IStatementAnalyzer
               ]
             }
             Правила:
-            - "Приход" → direction "income", "Расход" → direction "expense".
-            - Сумма: бери значение В ВАЛЮТЕ СЧЁТА (второе число из двух, перед остатком после операции). Всегда положительная.
-            - Дата — дата совершения операции (не дата отражения). Время — если есть.
+            - Беларусбанк: "Приход" → income, "Расход" → expense.
+            - Приорбанк: есть колонки "Списание" и "Поступление". Если "Поступление" > 0 → income,
+              иначе expense; сумма — ненулевое из "Списание"/"Поступление". Знак также в "(+)"/"(-)".
+            - Сумма всегда положительная, в валюте счёта.
+            - Дата — дата совершения операции. Время — если есть.
             - is_transfer = true для переводов между своими счетами: "Перевод P2P", "PERSON TO PERSON",
-              переводы/снятие наличных/банкомат/ATM, пополнение наличными. Для покупок и зарплаты — false.
-            - category: выбери СТРОГО из списка расходов для direction "expense": {{expense}};
-              для direction "income" из списка доходов: {{income}}. Если не подходит — null.
-              MCC помогает: 5411 продукты, 5541 АЗС/топливо, 4900 коммунальные/связь, 6012 финансовые переводы.
-              Если операция проведена через ЕРИП (в описании "ERIP") без конкретного получателя — ставь категорию "ЕРИП".
-            - "description" — кратко (магазин/назначение, например "SHOP DIONIS", "ERIP", "AZS N1"), без повторов place.
-            - Если строка не является операцией (заголовки, итоги) — не включай её.
-            - НЕ включай поля со значением null (кроме обязательных date, amount, direction) — так JSON короче и не обрежется.
+              "снятие наличных"/банкомат/ATM, "пополнение счета", "с транзитного счёта",
+              "перевод между счетами", "зачисление по реестру карт-центра"/"P2P". Покупки/зарплата — false.
+            - category: строго из списка расходов для expense: {{expense}}; из списка доходов для income: {{income}}.
+              Если не подходит — null. MCC: 5411 продукты, 5541 АЗС, 4900 коммунальные/связь, 6012 финансовые переводы.
+              Платёж через ЕРИП (в описании "ERIP") — категория "ЕРИП".
+            - "description" — кратко (магазин/назначение, например "UNIVERSAM", "MOBILE BANK", "ERIP"), без повторов place.
+            - Строки-заголовки и итоги не включай.
+            - Не включай поля со значением null (кроме обязательных date, amount, direction).
             - Отвечай компактным JSON без лишних пробелов и переносов.
             """;
     }
@@ -125,6 +158,35 @@ public sealed class OpenCodeGoStatementAnalyzer : IStatementAnalyzer
         }
 
         return DateTimeOffset.UtcNow;
+    }
+
+    private static List<string> Chunk(string text, int size)
+    {
+        var chunks = new List<string>();
+        var builder = new StringBuilder();
+
+        foreach (var line in text.Split('\n'))
+        {
+            if (builder.Length + line.Length + 1 > size && builder.Length > 0)
+            {
+                chunks.Add(builder.ToString());
+                builder.Clear();
+            }
+
+            builder.AppendLine(line);
+        }
+
+        if (builder.Length > 0)
+        {
+            chunks.Add(builder.ToString());
+        }
+
+        if (chunks.Count == 0)
+        {
+            chunks.Add(text);
+        }
+
+        return chunks;
     }
 
     private static StatementPayload? ParsePayload(string content)
