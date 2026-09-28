@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<ISavedDishService, SavedDishService>();
         services.AddScoped<IFoodShareService, FoodShareService>();
         services.AddScoped<IStatementService, StatementService>();
+        services.AddScoped<IStatementProcessor, StatementProcessor>();
         services.AddScoped<IReportService, ReportService>();
 
         return services;

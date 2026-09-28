@@ -5,6 +5,7 @@ using FinanceFoodTracker.Application.FoodLogs;
 using FinanceFoodTracker.Application.FoodLogs.Analysis;
 using FinanceFoodTracker.Application.Receipts;
 using FinanceFoodTracker.Application.Receipts.Analysis;
+using FinanceFoodTracker.Application.Statements;
 using FinanceFoodTracker.Application.Statements.Analysis;
 using FinanceFoodTracker.Infrastructure.Analysis;
 using FinanceFoodTracker.Infrastructure.Pdf;
@@ -89,6 +90,9 @@ public static class DependencyInjection
 
         services.AddSingleton<IFoodLogProcessingQueue, FoodLogProcessingQueue>();
         services.AddHostedService<FoodLogProcessingWorker>();
+
+        services.AddSingleton<IStatementProcessingQueue, StatementProcessingQueue>();
+        services.AddHostedService<StatementProcessingWorker>();
 
         services.AddHttpClient<ITelegramBot, TelegramBotClient>((provider, client) =>
         {

@@ -1,8 +1,8 @@
 using System.Text;
+using System.Text.Json;
 using FinanceFoodTracker.Application.Common.Exceptions;
 using FinanceFoodTracker.Application.Common.Interfaces;
 using FinanceFoodTracker.Application.Statements;
-using FinanceFoodTracker.Application.Statements.Analysis;
 using FinanceFoodTracker.Domain.Entities;
 using FinanceFoodTracker.Domain.Enums;
 using Xunit;
@@ -41,17 +41,25 @@ public sealed class StatementServiceTests
         public string Extract(byte[] pdf) => "statement text";
     }
 
-    private sealed class FakeAnalyzer : IStatementAnalyzer
+    private sealed class FakeQueue : IStatementProcessingQueue
     {
-        private readonly IReadOnlyList<StatementOperationResult> _operations;
+        public List<Guid> Enqueued { get; } = new();
 
-        public FakeAnalyzer(IReadOnlyList<StatementOperationResult>? operations = null)
+        public ValueTask EnqueueAsync(Guid statementId, CancellationToken cancellationToken = default)
         {
-            _operations = operations ?? Array.Empty<StatementOperationResult>();
+            Enqueued.Add(statementId);
+            return ValueTask.CompletedTask;
         }
 
-        public Task<StatementAnalysisResult> AnalyzeAsync(StatementAnalysisRequest request, CancellationToken cancellationToken = default)
-            => Task.FromResult(new StatementAnalysisResult("BYN", 100m, 90m, _operations, "{\"ok\":true}"));
+        public async IAsyncEnumerable<Guid> ReadAllAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var id in Enqueued)
+            {
+                yield return id;
+            }
+
+            await Task.CompletedTask;
+        }
     }
 
     private static async Task<(Infrastructure.Persistence.AppDbContext Db, Guid UserId)> SeedAsync()
@@ -66,27 +74,22 @@ public sealed class StatementServiceTests
         return (db, user.Id);
     }
 
-    private static StatementService CreateService(
-        Infrastructure.Persistence.AppDbContext db,
-        IReadOnlyList<StatementOperationResult>? operations = null)
-        => new(db, new FakeFileStorage(), new FakePdf(), new FakeAnalyzer(operations));
+    private static StatementService CreateService(Infrastructure.Persistence.AppDbContext db, FakeQueue? queue = null)
+        => new(db, new FakeFileStorage(), new FakePdf(), queue ?? new FakeQueue());
 
     [Fact]
-    public async Task Create_ValidPdf_ParsesAndMapsCategory()
+    public async Task Create_ValidPdf_EnqueuesPending()
     {
         var (db, userId) = await SeedAsync();
         await using var _ = db;
-        var service = CreateService(db, new[]
-        {
-            new StatementOperationResult(new DateTimeOffset(2026, 9, 20, 12, 0, 0, TimeSpan.FromHours(3)), 49.06m, "expense", "Оплата товаров", "MINSK", "BYN", "5411", false, "Продукты", 0.9m)
-        });
+        var queue = new FakeQueue();
+        var service = CreateService(db, queue);
 
         var result = await service.CreateAsync(userId, PdfBytes, "statement.pdf");
 
-        Assert.Equal("Processed", result.Status);
-        var operation = Assert.Single(result.Operations);
-        Assert.Equal("Продукты", operation.CategoryName);
-        Assert.NotNull(operation.CategoryId);
+        Assert.Equal("Pending", result.Status);
+        Assert.Empty(result.Operations);
+        Assert.Contains(result.Id, queue.Enqueued);
     }
 
     [Fact]
@@ -115,43 +118,10 @@ public sealed class StatementServiceTests
 
         Assert.True(result.Confirmed);
         Assert.Equal(2, result.CreatedCount);
-
         var transactions = db.Transactions.ToList();
         Assert.Equal(2, transactions.Count);
         Assert.All(transactions, t => Assert.Equal(TransactionSource.Statement, t.Source));
         Assert.Single(transactions, t => t.IsTransfer);
-    }
-
-    [Fact]
-    public async Task GetMatches_FindsExistingTransaction()
-    {
-        var (db, userId) = await SeedAsync();
-        await using var _ = db;
-        var occurredAt = DateTimeOffset.UtcNow.AddHours(-2);
-        var service = CreateService(db, new[]
-        {
-            new StatementOperationResult(occurredAt, 49.06m, "expense", "Оплата", "MINSK", "BYN", "5411", false, "Продукты", 0.9m)
-        });
-
-        var account = db.Accounts.First();
-        var manual = new Transaction
-        {
-            UserId = userId,
-            AccountId = account.Id,
-            Type = TransactionType.Expense,
-            Amount = 49.06m,
-            Currency = "BYN",
-            OccurredAt = occurredAt,
-            Source = TransactionSource.Manual
-        };
-        db.Transactions.Add(manual);
-        await db.SaveChangesAsync();
-
-        var created = await service.CreateAsync(userId, PdfBytes, "statement.pdf");
-        var matches = await service.GetMatchesAsync(userId, created.Id);
-
-        var match = Assert.Single(matches);
-        Assert.Contains(match.Candidates, candidate => candidate.Id == manual.Id);
     }
 
     [Fact]
@@ -160,10 +130,7 @@ public sealed class StatementServiceTests
         var (db, userId) = await SeedAsync();
         await using var _ = db;
         var occurredAt = DateTimeOffset.UtcNow.AddHours(-2);
-        var service = CreateService(db, new[]
-        {
-            new StatementOperationResult(occurredAt, 49.06m, "expense", "Оплата", "MINSK", "BYN", "5411", false, "Продукты", 0.9m)
-        });
+        var service = CreateService(db);
         var account = db.Accounts.First();
         var manual = new Transaction
         {
@@ -185,6 +152,41 @@ public sealed class StatementServiceTests
 
         Assert.Equal(0, result.CreatedCount);
         Assert.Equal(1, db.Transactions.Count());
+    }
+
+    [Fact]
+    public async Task GetMatches_FindsExistingTransaction()
+    {
+        var (db, userId) = await SeedAsync();
+        await using var _ = db;
+        var occurredAt = DateTimeOffset.UtcNow.AddHours(-2);
+        var service = CreateService(db);
+        var created = await service.CreateAsync(userId, PdfBytes, "statement.pdf");
+
+        var statement = db.Statements.First(s => s.Id == created.Id);
+        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        statement.ParsedOperations = JsonSerializer.Serialize(
+            new[] { new StatementOperationDto(occurredAt, 49.06m, "expense", "Оплата", "MINSK", "BYN", "5411", false, null, null, "Продукты", 0.9m) },
+            jsonOptions);
+
+        var account = db.Accounts.First();
+        var manual = new Transaction
+        {
+            UserId = userId,
+            AccountId = account.Id,
+            Type = TransactionType.Expense,
+            Amount = 49.06m,
+            Currency = "BYN",
+            OccurredAt = occurredAt,
+            Source = TransactionSource.Manual
+        };
+        db.Transactions.Add(manual);
+        await db.SaveChangesAsync();
+
+        var matches = await service.GetMatchesAsync(userId, created.Id);
+
+        var match = Assert.Single(matches);
+        Assert.Contains(match.Candidates, candidate => candidate.Id == manual.Id);
     }
 
     [Fact]

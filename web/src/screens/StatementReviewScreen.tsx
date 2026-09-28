@@ -72,8 +72,46 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
         }
       })
 
+    return () => {
+      cancelled = true
+    }
+  }, [statementId])
+
+  useEffect(() => {
+    if (!statement || statement.status !== 'Pending') {
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setInterval(() => {
+      api
+        .statement(statement.id)
+        .then((data) => {
+          if (!cancelled) {
+            setStatement(data)
+            setOperations(data.operations)
+          }
+        })
+        .catch(() => {
+          // продолжаем опрашивать
+        })
+    }, 3000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [statement])
+
+  useEffect(() => {
+    if (!statement || statement.confirmed || statement.status === 'Pending') {
+      return
+    }
+
+    let cancelled = false
+
     api
-      .statementMatches(statementId)
+      .statementMatches(statement.id)
       .then((rows) => {
         if (!cancelled) {
           setMatches(Object.fromEntries(rows.map((row) => [row.index, row.candidates])))
@@ -86,7 +124,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
     return () => {
       cancelled = true
     }
-  }, [statementId])
+  }, [statement])
 
   function openEditor(index: number) {
     const operation = operations[index]
@@ -201,6 +239,10 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
           </div>
 
           <p className="muted small">{statement.fileName}</p>
+
+          {statement.status === 'Pending' && (
+            <p className="muted">Идёт разбор выписки — это может занять до минуты. Экран обновится сам.</p>
+          )}
 
           {statement.status === 'Failed' && statement.error && <p className="error small">{statement.error}</p>}
 
