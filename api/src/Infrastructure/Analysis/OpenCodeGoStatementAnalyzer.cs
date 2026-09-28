@@ -31,17 +31,33 @@ public sealed class OpenCodeGoStatementAnalyzer : IStatementAnalyzer
 
         var tasks = chunks.Select(async (chunk, index) =>
         {
+            if (chunk.Trim().Length < 40)
+            {
+                return;
+            }
+
             await throttle.WaitAsync(cancellationToken);
             try
             {
-                var content = await _client.CompleteJsonAsync(
-                    systemPrompt,
-                    $"Разбери банковскую выписку (часть {index + 1} из {chunks.Count}) и верни JSON по схеме.\n\nТекст выписки:\n{chunk}",
-                    null,
-                    $"{request.SessionId}-{index}",
-                    cancellationToken);
+                for (var attempt = 0; attempt < 2; attempt++)
+                {
+                    try
+                    {
+                        var content = await _client.CompleteJsonAsync(
+                            systemPrompt,
+                            $"Разбери банковскую выписку (часть {index + 1} из {chunks.Count}) и верни JSON по схеме.\n\nТекст выписки:\n{chunk}",
+                            null,
+                            $"{request.SessionId}-{index}-{attempt}",
+                            cancellationToken);
 
-                results[index] = ParsePayload(content);
+                        results[index] = ParsePayload(content);
+                        break;
+                    }
+                    catch (Exception) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        // повторяем чанк; если не выйдет — пропускаем, чтобы не терять остальные
+                    }
+                }
             }
             finally
             {
@@ -74,6 +90,11 @@ public sealed class OpenCodeGoStatementAnalyzer : IStatementAnalyzer
             }
 
             rawResponse = JsonSerializer.Serialize(results);
+        }
+
+        if (operations.Count == 0 && results.All(payload => payload is null))
+        {
+            throw new InvalidOperationException("Не удалось разобрать выписку — попробуйте ещё раз.");
         }
 
         return new StatementAnalysisResult(currency, opening, closing, operations, rawResponse);
