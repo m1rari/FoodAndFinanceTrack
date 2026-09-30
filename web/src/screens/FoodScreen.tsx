@@ -3,6 +3,7 @@ import type { ChangeEvent } from 'react'
 import { api, ApiError } from '../api/client'
 import type { FoodLogDto, SavedDishDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import Skeleton from '../components/Skeleton'
 import { haptic } from '../telegram/telegram'
 import { compressImage } from '../utils/image'
 import { addDays, dayRange, formatDayTitle } from '../utils/date'
@@ -237,8 +238,12 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
         </span>
       </div>
 
-      {loading && <p className="muted">Загрузка…</p>}
-      {error && <p className="error">{error}</p>}
+      {loading && <Skeleton rows={3} />}
+      {error && (
+        <p className="error" aria-live="polite">
+          {error}
+        </p>
+      )}
 
       {!loading && logs.length === 0 && (
         <div className="empty">
@@ -352,7 +357,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
 
       <BottomSheet open={composeOpen} title="Новое блюдо" onClose={closeCompose}>
         {pending ? (
-          <img className="receipt-image" src={pending.previewUrl} alt="Блюдо" />
+          <img className="receipt-image" src={pending.previewUrl} alt="Блюдо" width={1200} height={900} />
         ) : (
           <p className="muted small">Добавьте фото, опишите блюдо или заполните оба поля.</p>
         )}

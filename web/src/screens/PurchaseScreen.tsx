@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { api, ApiError, fetchReceiptImage } from '../api/client'
 import type { CategoryDto, ReceiptDto, ReceiptItemDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import Skeleton from '../components/Skeleton'
 import { haptic } from '../telegram/telegram'
 import { formatDate, formatMoney } from '../utils/format'
 
@@ -282,8 +283,12 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
         <span />
       </header>
 
-      {loading && <p className="muted">Загрузка…</p>}
-      {error && <p className="error">{error}</p>}
+      {loading && <Skeleton rows={3} />}
+      {error && (
+        <p className="error" aria-live="polite">
+          {error}
+        </p>
+      )}
 
       {receipt && (
         <>
@@ -293,7 +298,15 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
           </div>
 
           {previewUrl && (
-            <img className="receipt-image" src={previewUrl} alt="Чек" loading="lazy" decoding="async" />
+            <img
+              className="receipt-image"
+              src={previewUrl}
+              alt="Чек"
+              width={1200}
+              height={900}
+              loading="lazy"
+              decoding="async"
+            />
           )}
 
           <div className="purchase-head">

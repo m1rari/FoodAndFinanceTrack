@@ -2,16 +2,35 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { ReportSummaryDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
-import { customPeriod, formatPeriodLabel, periodFor } from '../utils/date'
+import Skeleton from '../components/Skeleton'
+import { customPeriod, dayKey, formatPeriodLabel, periodFor } from '../utils/date'
 import type { Period, PeriodPreset } from '../utils/date'
 import { formatMoney } from '../utils/format'
+import { readUrlParam, writeUrlParams } from '../utils/url'
 
 interface Props {
   refreshKey: number
 }
 
 export default function ReportScreen({ refreshKey }: Props) {
-  const [period, setPeriod] = useState<Period>(() => periodFor('month'))
+  const [period, setPeriod] = useState<Period>(() => {
+    const preset = readUrlParam('rperiod')
+
+    if (preset === 'today' || preset === 'week' || preset === 'month') {
+      return periodFor(preset)
+    }
+
+    if (preset === 'custom') {
+      const from = readUrlParam('rfrom')
+      const to = readUrlParam('rto')
+
+      if (from && to) {
+        return customPeriod(from, to)
+      }
+    }
+
+    return periodFor('month')
+  })
   const [summary, setSummary] = useState<ReportSummaryDto | null>(null)
   const [expenses, setExpenses] = useState<TransactionDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,6 +68,14 @@ export default function ReportScreen({ refreshKey }: Props) {
       cancelled = true
     }
   }, [period, refreshKey])
+
+  useEffect(() => {
+    writeUrlParams({
+      rperiod: period.preset,
+      rfrom: period.preset === 'custom' ? dayKey(period.from) : null,
+      rto: period.preset === 'custom' ? dayKey(period.to) : null,
+    })
+  }, [period])
 
   const topStores = useMemo(() => {
     const map = new Map<string, number>()
@@ -100,8 +127,12 @@ export default function ReportScreen({ refreshKey }: Props) {
         </button>
       </div>
 
-      {loading && <p className="muted">Загрузка…</p>}
-      {error && <p className="error">{error}</p>}
+      {loading && <Skeleton rows={3} />}
+      {error && (
+        <p className="error" aria-live="polite">
+          {error}
+        </p>
+      )}
 
       {summary && (
         <>

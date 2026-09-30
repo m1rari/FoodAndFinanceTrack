@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { api, ApiError, fetchFoodImage } from '../api/client'
 import type { FoodLogDto, UpdateFoodLogRequest } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import Skeleton from '../components/Skeleton'
 import { haptic, openTelegramLink } from '../telegram/telegram'
 import { formatDate, formatTime } from '../utils/format'
 
@@ -328,8 +329,12 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
         </div>
       </header>
 
-      {loading && <p className="muted">Загрузка…</p>}
-      {error && <p className="error">{error}</p>}
+      {loading && <Skeleton rows={3} />}
+      {error && (
+        <p className="error" aria-live="polite">
+          {error}
+        </p>
+      )}
 
       {log && (
         <>
@@ -339,7 +344,15 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
           </div>
 
           {previewUrl && (
-            <img className="receipt-image" src={previewUrl} alt="Блюдо" loading="lazy" decoding="async" />
+            <img
+              className="receipt-image"
+              src={previewUrl}
+              alt="Блюдо"
+              width={1200}
+              height={900}
+              loading="lazy"
+              decoding="async"
+            />
           )}
 
           <div className="card">

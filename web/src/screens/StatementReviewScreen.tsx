@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { CategoryDto, StatementDto, StatementOperationDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import Skeleton from '../components/Skeleton'
 import { haptic } from '../telegram/telegram'
 import { dayKey, formatDayLabel } from '../utils/date'
 import { formatDate, formatMoney, formatTime, plural } from '../utils/format'
@@ -230,8 +231,12 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
         <span />
       </header>
 
-      {loading && <p className="muted">Загрузка…</p>}
-      {error && <p className="error">{error}</p>}
+      {loading && <Skeleton rows={4} />}
+      {error && (
+        <p className="error" aria-live="polite">
+          {error}
+        </p>
+      )}
 
       {statement && (
         <>
@@ -256,7 +261,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
                 <span>{formatDayLabel(grouped[key][0].operation.occurredAt)}</span>
               </div>
 
-              <ul className="list">
+              <ul className="list perf">
                 {grouped[key].map(({ operation, index }) => (
                     <li key={index}>
                       <button

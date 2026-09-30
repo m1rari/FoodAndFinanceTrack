@@ -3,9 +3,11 @@ import { api, ApiError } from '../api/client'
 import type { CategoryDto, ReceiptSummaryDto, TransactionDto } from '../api/types'
 import AddSheet from '../components/AddSheet'
 import BottomSheet from '../components/BottomSheet'
+import Skeleton from '../components/Skeleton'
 import { customPeriod, dayKey, formatDayLabel, formatPeriodLabel, periodFor } from '../utils/date'
 import type { Period, PeriodPreset } from '../utils/date'
 import { formatMoney, plural } from '../utils/format'
+import { readUrlParam, writeUrlParams } from '../utils/url'
 
 interface Props {
   refreshKey: number
@@ -104,9 +106,26 @@ function buildDays(items: TransactionDto[]): DayGroup[] {
 
 export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, onOpenStatement, onManual }: Props) {
   const [addOpen, setAddOpen] = useState(false)
-  const [period, setPeriod] = useState<Period>(() => periodFor('month'))
-  const [type, setType] = useState('')
-  const [categoryId, setCategoryId] = useState('')
+  const [period, setPeriod] = useState<Period>(() => {
+    const preset = readUrlParam('period')
+
+    if (preset === 'today' || preset === 'week' || preset === 'month') {
+      return periodFor(preset)
+    }
+
+    if (preset === 'custom') {
+      const from = readUrlParam('from')
+      const to = readUrlParam('to')
+
+      if (from && to) {
+        return customPeriod(from, to)
+      }
+    }
+
+    return periodFor('month')
+  })
+  const [type, setType] = useState(() => readUrlParam('type') ?? '')
+  const [categoryId, setCategoryId] = useState(() => readUrlParam('category') ?? '')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [items, setItems] = useState<TransactionDto[]>([])
@@ -173,6 +192,16 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
       cancelled = true
     }
   }, [period, type, categoryId, refreshKey])
+
+  useEffect(() => {
+    writeUrlParams({
+      period: period.preset,
+      from: period.preset === 'custom' ? dayKey(period.from) : null,
+      to: period.preset === 'custom' ? dayKey(period.to) : null,
+      type: type || null,
+      category: categoryId || null,
+    })
+  }, [period, type, categoryId])
 
   const days = useMemo(() => buildDays(items), [items])
   const totals = useMemo(() => {
@@ -290,11 +319,7 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
         </div>
       )}
 
-      {loading && (
-        <p className="muted" aria-live="polite">
-          Загрузка…
-        </p>
-      )}
+      {loading && <Skeleton rows={4} />}
       {error && (
         <p className="error" aria-live="polite">
           {error}
@@ -323,7 +348,7 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
             </span>
           </div>
 
-          <ul className="list">
+          <ul className="list perf">
             {day.rows.map((row) =>
               row.kind === 'purchase' ? (
                 <li key={`p-${row.group.receiptId}`}>

@@ -4,6 +4,7 @@ import { api, ApiError, setInitData } from './api/client'
 import type { TransactionDto, UserDto } from './api/types'
 import { initTelegram } from './telegram/init'
 import { getStartParam, haptic } from './telegram/telegram'
+import { readUrlParam, writeUrlParams } from './utils/url'
 import { useBackButton } from './hooks/useBackButton'
 import OperationsScreen from './screens/OperationsScreen'
 import TransactionFormScreen from './screens/TransactionFormScreen'
@@ -24,7 +25,10 @@ export default function App() {
     context.initData ? null : 'Откройте приложение через Telegram — не удалось получить initData.',
   )
   const [loading, setLoading] = useState(context.initData.length > 0)
-  const [tab, setTab] = useState<Tab>('operations')
+  const [tab, setTab] = useState<Tab>(() => {
+    const value = readUrlParam('tab')
+    return value === 'food' || value === 'reports' ? value : 'operations'
+  })
   const [editing, setEditing] = useState<TransactionDto | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
@@ -132,11 +136,13 @@ export default function App() {
     setEditing(null)
     setManualOpen(false)
     setRefreshKey((value) => value + 1)
+    writeUrlParams({ tab: 'operations' })
     setTab('operations')
   }
 
   function switchTab(next: Tab) {
     haptic('select')
+    writeUrlParams({ tab: next })
     setEditing(null)
     setTab(next)
   }
