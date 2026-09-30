@@ -202,6 +202,8 @@ button {
 }
 
 .primary {
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 92%, white), var(--brand));
   color: var(--brand-ink);
   box-shadow: 0 10px 26px -14px color-mix(in srgb, var(--brand) 80%, transparent);
@@ -654,6 +656,8 @@ button:disabled {
 /* ---------------------------------------------------------- match / saved */
 
 .match-card {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
@@ -926,5 +930,93 @@ button:disabled {
 .tab.active {
   color: var(--brand);
   background: color-mix(in srgb, var(--brand) 14%, transparent);
-  box-shadow: 0 0 18px -6px color-mix(in srgb, var(--brand) 80%, transparent);
+  animation: breath 3.2s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------- motion */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-130%);
+  }
+  60%,
+  100% {
+    transform: translateX(230%);
+  }
+}
+
+@keyframes breath {
+  0%,
+  100% {
+    box-shadow: 0 0 14px -8px color-mix(in srgb, var(--brand) 80%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 22px -4px color-mix(in srgb, var(--brand) 85%, transparent);
+  }
+}
+
+.card,
+.stat,
+.action-card,
+.day-group,
+.meal-card,
+.list-item {
+  animation: rise 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.list-item:nth-child(2),
+.day-group:nth-child(2) {
+  animation-delay: 0.04s;
+}
+
+.list-item:nth-child(3),
+.day-group:nth-child(3) {
+  animation-delay: 0.08s;
+}
+
+.list-item:nth-child(4) {
+  animation-delay: 0.12s;
+}
+
+.list-item:nth-child(5) {
+  animation-delay: 0.16s;
+}
+
+.unconfirmed .list-item::after,
+.match-card::after,
+.primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 55%;
+  background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.16) 50%, transparent 100%);
+  transform: translateX(-130%);
+  animation: shimmer 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.match-card::after {
+  animation-duration: 4.2s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
