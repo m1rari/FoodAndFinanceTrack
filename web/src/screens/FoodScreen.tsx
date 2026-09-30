@@ -47,8 +47,11 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [adding, setAdding] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [composeOpen, setComposeOpen] = useState(false)
+  const [confirmDish, setConfirmDish] = useState<SavedDishDto | null>(null)
+  const [localRefresh, setLocalRefresh] = useState(0)
   const [pending, setPending] = useState<{ blob: Blob; fileName: string; previewUrl: string } | null>(null)
   const [context, setContext] = useState('')
 
@@ -78,7 +81,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
     return () => {
       cancelled = true
     }
-  }, [day, refreshKey])
+  }, [day, refreshKey, localRefresh])
 
   useEffect(() => {
     let cancelled = false
@@ -163,16 +166,28 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
     }
   }
 
-  async function addFromSaved(dish: SavedDishDto) {
+  function openConfirm(dish: SavedDishDto) {
+    setConfirmDish(dish)
+  }
+
+  async function confirmAdd() {
+    if (!confirmDish) {
+      return
+    }
+
     setError(null)
+    setAdding(true)
 
     try {
-      const log = await api.addSavedDishToDiary(dish.id)
+      await api.addSavedDishToDiary(confirmDish.id)
+      setConfirmDish(null)
       setMenuOpen(false)
+      setLocalRefresh((value) => value + 1)
       haptic('success')
-      onUploaded(log.id)
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось добавить блюдо')
+    } finally {
+      setAdding(false)
     }
   }
 
@@ -245,7 +260,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
           <h2 className="section-title">Быстро добавить</h2>
           <div className="chips-row">
             {quickDishes.map((dish) => (
-              <button key={dish.id} className="chip" onClick={() => addFromSaved(dish)}>
+                <button key={dish.id} className="chip" onClick={() => openConfirm(dish)}>
                 {dish.name}
               </button>
             ))}
@@ -337,7 +352,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
             <ul className="list">
               {favorites.map((dish) => (
                 <li key={dish.id} className="saved-row">
-                  <button className="saved-main" onClick={() => addFromSaved(dish)}>
+                  <button className="saved-main" onClick={() => openConfirm(dish)}>
                     <span className="list-title">{dish.name}</span>
                     <span className="muted small">{range(dish.caloriesMin, dish.caloriesMax)} ккал</span>
                   </button>
@@ -356,7 +371,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
             <ul className="list">
               {recents.map((dish) => (
                 <li key={dish.id} className="saved-row">
-                  <button className="saved-main" onClick={() => addFromSaved(dish)}>
+                  <button className="saved-main" onClick={() => openConfirm(dish)}>
                     <span className="list-title">{dish.name}</span>
                     <span className="muted small">{range(dish.caloriesMin, dish.caloriesMax)} ккал</span>
                   </button>
@@ -423,6 +438,31 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
             {uploading ? 'Обработка…' : 'Оценить'}
           </button>
         </div>
+      </BottomSheet>
+
+      <BottomSheet open={confirmDish !== null} title="Добавить в дневник?" onClose={() => setConfirmDish(null)}>
+        {confirmDish && (
+          <>
+            <div className="card">
+              <strong>{confirmDish.name}</strong>
+              <span className="muted small">
+                {range(confirmDish.caloriesMin, confirmDish.caloriesMax)} ккал · Б{' '}
+                {range(confirmDish.proteinMinG, confirmDish.proteinMaxG)} · Ж{' '}
+                {range(confirmDish.fatMinG, confirmDish.fatMaxG)} · У{' '}
+                {range(confirmDish.carbsMinG, confirmDish.carbsMaxG)} г
+              </span>
+            </div>
+
+            <div className="actions">
+              <button type="button" className="ghost" onClick={() => setConfirmDish(null)}>
+                Отмена
+              </button>
+              <button type="button" className="primary" disabled={adding} onClick={confirmAdd}>
+                {adding ? 'Добавление…' : 'Добавить в дневник'}
+              </button>
+            </div>
+          </>
+        )}
       </BottomSheet>
     </section>
   )
