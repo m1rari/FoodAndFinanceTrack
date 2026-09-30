@@ -98,8 +98,8 @@ export function initializeTelegramUi(): void {
   }
 
   try {
-    app.setHeaderColor?.('bg_color')
-    app.setBackgroundColor?.('bg_color')
+    app.setHeaderColor?.('#0a0e18')
+    app.setBackgroundColor?.('#0a0e18')
   } catch {
     // no-op
   }
