@@ -537,6 +537,8 @@ button:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .list-right {
@@ -663,6 +665,8 @@ button:disabled {
   border-radius: var(--r);
   padding: 12px 14px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .field textarea,
@@ -786,9 +790,10 @@ button:disabled {
 
 .saved-main {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 2px;
   text-align: left;
   color: var(--ink);
@@ -872,6 +877,7 @@ button:disabled {
   justify-content: space-between;
   gap: var(--sp-3);
   width: 100%;
+  min-width: 0;
   padding: 10px 0 2px;
   text-align: left;
   color: var(--ink);
@@ -924,6 +930,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 /* ---------------------------------------------------------- bottom sheet */
