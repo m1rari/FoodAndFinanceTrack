@@ -15,6 +15,7 @@ public interface IApplicationDbContext
     DbSet<SavedDish> SavedDishes { get; }
     DbSet<Statement> Statements { get; }
     DbSet<FoodShare> FoodShares { get; }
+    DbSet<ChatModeState> ChatModes { get; }
     DbSet<CategoryRule> CategoryRules { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

@@ -9,7 +9,7 @@ public enum ChatMode
 
 public interface IChatModeStore
 {
-    ChatMode Get(long chatId);
+    Task<ChatMode> GetAsync(long chatId, CancellationToken cancellationToken = default);
 
-    void Set(long chatId, ChatMode mode);
+    Task SetAsync(long chatId, ChatMode mode, CancellationToken cancellationToken = default);
 }

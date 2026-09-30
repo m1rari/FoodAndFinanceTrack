@@ -20,6 +20,7 @@ public sealed class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<SavedDish> SavedDishes => Set<SavedDish>();
     public DbSet<Statement> Statements => Set<Statement>();
     public DbSet<FoodShare> FoodShares => Set<FoodShare>();
+    public DbSet<ChatModeState> ChatModes => Set<ChatModeState>();
     public DbSet<CategoryRule> CategoryRules => Set<CategoryRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

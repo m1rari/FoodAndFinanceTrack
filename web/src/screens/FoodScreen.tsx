@@ -6,7 +6,7 @@ import BottomSheet from '../components/BottomSheet'
 import Skeleton from '../components/Skeleton'
 import { haptic } from '../telegram/telegram'
 import { compressImage } from '../utils/image'
-import { addDays, dayRange, formatDayTitle } from '../utils/date'
+import { addDays, dayKey, dayRange, formatDayTitle } from '../utils/date'
 import { formatTime } from '../utils/format'
 
 interface Props {
@@ -187,6 +187,8 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
 
   const favorites = saved.filter((dish) => dish.isFavorite)
   const recents = saved.filter((dish) => !dish.isFavorite).slice(0, 10)
+  const quickDishes = [...favorites, ...recents].slice(0, 12)
+  const isToday = dayKey(day.toISOString()) === dayKey(new Date().toISOString())
   const calories = range(sum(logs.map((log) => log.caloriesMin)), sum(logs.map((log) => log.caloriesMax)))
   const hasCalories = logs.some((log) => log.caloriesMin != null || log.caloriesMax != null)
 
@@ -237,6 +239,19 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
           {range(sum(logs.map((log) => log.carbsMinG)), sum(logs.map((log) => log.carbsMaxG)))} г
         </span>
       </div>
+
+      {isToday && quickDishes.length > 0 && (
+        <>
+          <h2 className="section-title">Быстро добавить</h2>
+          <div className="chips-row">
+            {quickDishes.map((dish) => (
+              <button key={dish.id} className="chip" onClick={() => addFromSaved(dish)}>
+                {dish.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {loading && <Skeleton rows={3} />}
       {error && (

@@ -100,7 +100,7 @@ public static class DependencyInjection
             client.BaseAddress = new Uri($"https://api.telegram.org/bot{options.BotToken}/");
             client.Timeout = TimeSpan.FromSeconds(30);
         });
-        services.AddSingleton<IChatModeStore, InMemoryChatModeStore>();
+        services.AddScoped<IChatModeStore, ChatModeStore>();
         services.AddHostedService<TelegramWebhookSetup>();
 
         return services;

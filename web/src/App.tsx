@@ -35,6 +35,7 @@ export default function App() {
   const [foodId, setFoodId] = useState<string | null>(null)
   const [statementId, setStatementId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
     if (!context.initData) {
@@ -77,7 +78,8 @@ export default function App() {
     }
 
     if (claimed.includes(token)) {
-      return
+      const timer = window.setTimeout(() => setNotice('Это блюдо уже добавлено ранее.'), 0)
+      return () => window.clearTimeout(timer)
     }
 
     api
@@ -90,13 +92,24 @@ export default function App() {
         }
 
         haptic('success')
+        setNotice('Блюдо из ссылки добавлено в дневник.')
         setRefreshKey((value) => value + 1)
         setFoodId(log.id)
       })
       .catch(() => {
-        // ссылка недействительна — молча игнорируем
+        setNotice('Ссылку на блюдо не удалось открыть: она недействительна или устарела.')
       })
   }, [user])
+
+  useEffect(() => {
+    if (!notice) {
+      return
+    }
+
+    const timer = window.setTimeout(() => setNotice(null), 6000)
+
+    return () => window.clearTimeout(timer)
+  }, [notice])
 
   const overlayOpen =
     manualOpen || editing !== null || purchaseId !== null || foodId !== null || statementId !== null
@@ -149,6 +162,15 @@ export default function App() {
 
   return (
     <div className="app">
+      {notice && (
+        <div className="notice" role="status" aria-live="polite">
+          <span>{notice}</span>
+          <button className="notice-close" aria-label="Закрыть" onClick={() => setNotice(null)}>
+            ✕
+          </button>
+        </div>
+      )}
+
       <main className="content" onClick={handleContentClick}>
         {!overlayOpen && (
           <>

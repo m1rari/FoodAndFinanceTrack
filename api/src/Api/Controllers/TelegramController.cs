@@ -67,7 +67,7 @@ public sealed class TelegramController : ControllerBase
 
         var chatId = message.Chat.Id;
         var text = message.Text?.Trim();
-        var mode = _modes.Get(chatId);
+        var mode = await _modes.GetAsync(chatId, cancellationToken);
 
         if (await HandleCommandsAsync(chatId, text, cancellationToken))
         {
@@ -112,15 +112,15 @@ public sealed class TelegramController : ControllerBase
                 case "/start":
                 case "/menu":
                 case "/help":
-                    _modes.Set(chatId, ChatMode.None);
+                    await _modes.SetAsync(chatId, ChatMode.None, cancellationToken);
                     await SendMenuAsync(chatId, "Привет! Что обработать — чек или еда? Выберите кнопкой или просто напишите.", cancellationToken);
                     return true;
                 case "/receipt":
-                    _modes.Set(chatId, ChatMode.Receipt);
+                    await _modes.SetAsync(chatId, ChatMode.Receipt, cancellationToken);
                     await SendMenuAsync(chatId, "Режим: чек. Жду фото чека или его описание текстом.", cancellationToken);
                     return true;
                 case "/food":
-                    _modes.Set(chatId, ChatMode.Food);
+                    await _modes.SetAsync(chatId, ChatMode.Food, cancellationToken);
                     await SendMenuAsync(chatId, "Режим: еда. Жду фото блюда или его описание текстом.", cancellationToken);
                     return true;
                 default:
@@ -131,14 +131,14 @@ public sealed class TelegramController : ControllerBase
 
         if (string.Equals(text, "чек", StringComparison.OrdinalIgnoreCase))
         {
-            _modes.Set(chatId, ChatMode.Receipt);
+            await _modes.SetAsync(chatId, ChatMode.Receipt, cancellationToken);
             await SendMenuAsync(chatId, "Режим: чек. Жду фото чека или его описание текстом.", cancellationToken);
             return true;
         }
 
         if (string.Equals(text, "еда", StringComparison.OrdinalIgnoreCase))
         {
-            _modes.Set(chatId, ChatMode.Food);
+            await _modes.SetAsync(chatId, ChatMode.Food, cancellationToken);
             await SendMenuAsync(chatId, "Режим: еда. Жду фото блюда или его описание текстом.", cancellationToken);
             return true;
         }
@@ -172,12 +172,12 @@ public sealed class TelegramController : ControllerBase
             if (mode == ChatMode.Food)
             {
                 await _foodLogs.CreateAsync(user.Id, bytes, name, caption, cancellationToken, chatId);
-                await SafeSendAsync(chatId, "Блюдо принято, оцениваю…", cancellationToken);
+                await SafeSendAsync(chatId, "Режим: еда. Блюдо принято, оцениваю…", cancellationToken);
             }
             else
             {
                 await _receipts.CreateAsync(user.Id, bytes, name, cancellationToken, chatId);
-                await SafeSendAsync(chatId, "Чек принят, распознаю…", cancellationToken);
+                await SafeSendAsync(chatId, "Режим: чек. Чек принят, распознаю…", cancellationToken);
             }
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
@@ -208,12 +208,12 @@ public sealed class TelegramController : ControllerBase
             if (mode == ChatMode.Food)
             {
                 await _foodLogs.CreateFromTextAsync(user.Id, text, cancellationToken, chatId);
-                await SafeSendAsync(chatId, "Описание принято, оцениваю…", cancellationToken);
+                await SafeSendAsync(chatId, "Режим: еда. Описание принято, оцениваю…", cancellationToken);
             }
             else
             {
                 await _receipts.CreateFromTextAsync(user.Id, text, cancellationToken, chatId);
-                await SafeSendAsync(chatId, "Описание принято, распознаю…", cancellationToken);
+                await SafeSendAsync(chatId, "Режим: чек. Описание принято, распознаю…", cancellationToken);
             }
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)

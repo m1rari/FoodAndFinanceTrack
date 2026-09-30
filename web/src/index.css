@@ -233,6 +233,30 @@ p {
   margin: 0;
 }
 
+.notice {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: min(calc(100% - 24px), 616px);
+  padding: 12px 14px;
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--brand) 45%, transparent);
+  box-shadow: var(--glow-brand);
+  font-size: 14px;
+}
+
+.notice-close {
+  color: var(--ink-soft);
+  font-size: 14px;
+  padding: 4px 6px;
+}
+
 /* ---------------------------------------------------------- buttons */
 
 button {
