@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using FinanceFoodTracker.Application.Common.Exceptions;
 using FinanceFoodTracker.Application.Common.Interfaces;
@@ -41,6 +42,17 @@ public sealed class StatementService : IStatementService
             throw new ValidationException("Ожидается PDF-файл выписки.");
         }
 
+        var contentHash = ComputeHash(pdf);
+
+        var existing = await _db.Statements
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.ContentHash == contentHash, cancellationToken);
+
+        if (existing is not null)
+        {
+            return ToDto(existing, duplicate: true);
+        }
+
         var path = await _fileStorage.SaveAsync(pdf, ".pdf", cancellationToken);
         var text = _pdf.Extract(pdf);
 
@@ -50,6 +62,7 @@ public sealed class StatementService : IStatementService
             FileName = string.IsNullOrWhiteSpace(fileName) ? "statement.pdf" : fileName,
             PdfPath = path,
             RawText = text,
+            ContentHash = contentHash,
             Status = ProcessingStatus.Pending
         };
 
@@ -184,7 +197,7 @@ public sealed class StatementService : IStatementService
             ? new List<StatementOperationDto>()
             : JsonSerializer.Deserialize<List<StatementOperationDto>>(statement.ParsedOperations, JsonOptions) ?? new();
 
-    private static StatementDto ToDto(Statement statement)
+    private static StatementDto ToDto(Statement statement, bool duplicate = false)
     {
         var operations = DeserializeOperations(statement);
 
@@ -196,7 +209,14 @@ public sealed class StatementService : IStatementService
             statement.CreatedCount,
             statement.CreatedAt,
             statement.Error,
-            operations);
+            operations,
+            duplicate);
+    }
+
+    private static string ComputeHash(byte[] content)
+    {
+        using var sha = SHA256.Create();
+        return Convert.ToHexString(sha.ComputeHash(content));
     }
 
     private static bool LooksLikePdf(byte[] content)

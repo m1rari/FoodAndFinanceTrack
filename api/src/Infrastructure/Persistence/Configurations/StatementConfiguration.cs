@@ -15,6 +15,7 @@ public sealed class StatementConfiguration : IEntityTypeConfiguration<Statement>
         builder.Property(s => s.FileName).HasColumnName("file_name").HasMaxLength(500).IsRequired();
         builder.Property(s => s.PdfPath).HasColumnName("pdf_path").IsRequired();
         builder.Property(s => s.RawText).HasColumnName("raw_text");
+        builder.Property(s => s.ContentHash).HasColumnName("content_hash").HasMaxLength(64);
         builder.Property(s => s.ParsedOperations).HasColumnName("parsed_operations").HasColumnType("jsonb");
         builder.Property(s => s.AiRawResponse).HasColumnName("ai_raw_response").HasColumnType("jsonb");
         builder.Property(s => s.Error).HasColumnName("error").HasMaxLength(1000);
@@ -22,6 +23,8 @@ public sealed class StatementConfiguration : IEntityTypeConfiguration<Statement>
         builder.Property(s => s.ConfirmedAt).HasColumnName("confirmed_at");
         builder.Property(s => s.CreatedCount).HasColumnName("created_count").IsRequired();
         builder.Property(s => s.CreatedAt).HasColumnName("created_at").IsRequired();
+
+        builder.HasIndex(s => new { s.UserId, s.ContentHash });
 
         builder.HasOne(s => s.User)
             .WithMany()

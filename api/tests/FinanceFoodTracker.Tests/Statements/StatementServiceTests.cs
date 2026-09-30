@@ -202,4 +202,19 @@ public sealed class StatementServiceTests
         await Assert.ThrowsAsync<ValidationException>(() =>
             service.ConfirmAsync(userId, created.Id, new ConfirmStatementRequest(Array.Empty<StatementOperationDto>())));
     }
+
+    [Fact]
+    public async Task Create_DuplicatePdf_ReturnsExistingStatement()
+    {
+        var (db, userId) = await SeedAsync();
+        await using var _ = db;
+        var service = CreateService(db);
+
+        var first = await service.CreateAsync(userId, PdfBytes, "statement.pdf");
+        var second = await service.CreateAsync(userId, PdfBytes, "statement.pdf");
+
+        Assert.Equal(first.Id, second.Id);
+        Assert.True(second.Duplicate);
+        Assert.Equal(1, db.Statements.Count());
+    }
 }

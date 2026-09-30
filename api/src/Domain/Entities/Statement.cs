@@ -9,6 +9,7 @@ public class Statement : Entity
     public string FileName { get; set; } = string.Empty;
     public string PdfPath { get; set; } = string.Empty;
     public string RawText { get; set; } = string.Empty;
+    public string? ContentHash { get; set; }
     public string? ParsedOperations { get; set; }
     public string? AiRawResponse { get; set; }
     public string? Error { get; set; }

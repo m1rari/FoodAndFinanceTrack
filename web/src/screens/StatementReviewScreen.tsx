@@ -249,6 +249,15 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
 
           <p className="muted small">{statement.fileName}</p>
 
+          {statement.duplicate && (
+            <div className="match-card">
+              <p className="small">Эта выписка уже загружалась ранее.</p>
+              <p className="muted small">
+                Если она уже проведена — повторно проводить не нужно. Иначе продолжите проверку и проведение.
+              </p>
+            </div>
+          )}
+
           {statement.status === 'Pending' && (
             <p className="muted">Идёт разбор выписки — это может занять до минуты. Экран обновится сам.</p>
           )}

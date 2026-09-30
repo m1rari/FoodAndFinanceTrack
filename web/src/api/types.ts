@@ -50,6 +50,7 @@ export interface StatementDto {
   createdCount: number
   createdAt: string
   error: string | null
+  duplicate: boolean
   operations: StatementOperationDto[]
 }
 

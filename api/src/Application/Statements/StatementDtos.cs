@@ -25,6 +25,7 @@ public sealed record StatementDto(
     int CreatedCount,
     DateTimeOffset CreatedAt,
     string? Error,
-    IReadOnlyList<StatementOperationDto> Operations);
+    IReadOnlyList<StatementOperationDto> Operations,
+    bool Duplicate = false);
 
 public sealed record ConfirmStatementRequest(IReadOnlyList<StatementOperationDto> Operations);
