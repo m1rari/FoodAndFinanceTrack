@@ -173,6 +173,8 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
         <label className="field">
           <span>Сумма</span>
           <input
+            name="amount"
+            autoComplete="off"
             inputMode="decimal"
             enterKeyHint="done"
             value={amount}
@@ -183,7 +185,7 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
 
         <label className="field">
           <span>Категория</span>
-          <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+          <select name="category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
             <option value="">Без категории</option>
             {available.map((category) => (
               <option key={category.id} value={category.id}>
@@ -195,12 +197,18 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
 
         <label className="field">
           <span>Дата</span>
-          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          <input type="date" name="date" value={date} onChange={(event) => setDate(event.target.value)} />
         </label>
 
         <label className="field">
           <span>Комментарий</span>
-          <input value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Необязательно" />
+          <input
+            name="comment"
+            autoComplete="off"
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="Необязательно"
+          />
         </label>
 
         {error && <p className="error">{error}</p>}

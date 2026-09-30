@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError } from '../api/client'
 import type { CategoryDto, ReceiptSummaryDto, TransactionDto } from '../api/types'
+import AddSheet from '../components/AddSheet'
 import BottomSheet from '../components/BottomSheet'
 import { customPeriod, dayKey, formatDayLabel, formatPeriodLabel, periodFor } from '../utils/date'
 import type { Period, PeriodPreset } from '../utils/date'
@@ -8,9 +9,10 @@ import { formatMoney, plural } from '../utils/format'
 
 interface Props {
   refreshKey: number
-  onAdd: () => void
   onEdit: (transaction: TransactionDto) => void
   onOpenPurchase: (receiptId: string) => void
+  onOpenStatement: (statementId: string) => void
+  onManual: () => void
 }
 
 const STATUS_SHORT: Record<string, string> = {
@@ -100,7 +102,8 @@ function buildDays(items: TransactionDto[]): DayGroup[] {
   return [...days.values()].sort((a, b) => b.key.localeCompare(a.key))
 }
 
-export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurchase }: Props) {
+export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, onOpenStatement, onManual }: Props) {
+  const [addOpen, setAddOpen] = useState(false)
   const [period, setPeriod] = useState<Period>(() => periodFor('month'))
   const [type, setType] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -223,7 +226,7 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
     <section className="screen">
       <header className="screen-header">
         <h1>Операции</h1>
-        <button className="primary" onClick={onAdd}>
+        <button className="primary" onClick={() => setAddOpen(true)}>
           + Добавить
         </button>
       </header>
@@ -265,7 +268,7 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
           <ul className="list">
             {receipts.map((receipt) => (
               <li key={receipt.id}>
-                <button className="list-item" onClick={() => onOpenPurchase(receipt.id)}>
+                <button className="list-item is-purchase" onClick={() => onOpenPurchase(receipt.id)}>
                   <span className="list-main">
                     <span className="list-title">{receipt.merchantName ?? 'Покупка'}</span>
                     <span className="muted small">
@@ -287,11 +290,27 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
         </div>
       )}
 
-      {loading && <p className="muted">Загрузка…</p>}
-      {error && <p className="error">{error}</p>}
+      {loading && (
+        <p className="muted" aria-live="polite">
+          Загрузка…
+        </p>
+      )}
+      {error && (
+        <p className="error" aria-live="polite">
+          {error}
+        </p>
+      )}
 
-      {!loading && !error && items.length === 0 && (
-        <p className="muted">За выбранный период операций нет.</p>
+      {!loading && !error && items.length === 0 && receipts.length === 0 && (
+        <div className="empty">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 3h14v18l-7-4-7 4z" />
+          </svg>
+          <p>За выбранный период операций нет.</p>
+          <button className="primary" onClick={() => setAddOpen(true)}>
+            Добавить операцию
+          </button>
+        </div>
       )}
 
       {days.map((day) => (
@@ -403,6 +422,17 @@ export default function OperationsScreen({ refreshKey, onAdd, onEdit, onOpenPurc
           </button>
         </div>
       </BottomSheet>
+
+      <AddSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onManual={() => {
+          setAddOpen(false)
+          onManual()
+        }}
+        onReceipt={onOpenPurchase}
+        onStatement={onOpenStatement}
+      />
     </section>
   )
 }

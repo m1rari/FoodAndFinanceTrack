@@ -3,21 +3,24 @@ import type { ChangeEvent } from 'react'
 import { api, ApiError } from '../api/client'
 import { haptic } from '../telegram/telegram'
 import { compressImage } from '../utils/image'
+import BottomSheet from './BottomSheet'
 
 interface Props {
+  open: boolean
+  onClose: () => void
   onManual: () => void
-  onUploaded: (receiptId: string) => void
+  onReceipt: (receiptId: string) => void
   onStatement: (statementId: string) => void
 }
 
-export default function AddScreen({ onManual, onUploaded, onStatement }: Props) {
+export default function AddSheet({ open, onClose, onManual, onReceipt, onStatement }: Props) {
   const cameraInput = useRef<HTMLInputElement>(null)
   const galleryInput = useRef<HTMLInputElement>(null)
   const pdfInput = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
+  async function handleReceipt(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
 
@@ -32,7 +35,8 @@ export default function AddScreen({ onManual, onUploaded, onStatement }: Props) 
       const compressed = await compressImage(file)
       const uploaded = await api.uploadReceipt(compressed.blob, compressed.fileName)
       haptic('success')
-      onUploaded(uploaded.id)
+      onReceipt(uploaded.id)
+      onClose()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить чек')
     } finally {
@@ -40,7 +44,7 @@ export default function AddScreen({ onManual, onUploaded, onStatement }: Props) 
     }
   }
 
-  async function handlePdf(event: ChangeEvent<HTMLInputElement>) {
+  async function handleStatement(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
 
@@ -55,6 +59,7 @@ export default function AddScreen({ onManual, onUploaded, onStatement }: Props) 
       const statement = await api.uploadStatement(file, file.name)
       haptic('success')
       onStatement(statement.id)
+      onClose()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось обработать выписку')
     } finally {
@@ -63,31 +68,23 @@ export default function AddScreen({ onManual, onUploaded, onStatement }: Props) 
   }
 
   return (
-    <section className="screen">
-      <header className="screen-header">
-        <h1>Добавить</h1>
-      </header>
-
+    <BottomSheet open={open} title="Добавить" onClose={onClose}>
       <button className="action-card" onClick={onManual}>
-        <span className="action-icon">₽</span>
+        <span className="action-icon" aria-hidden="true">
+          ₽
+        </span>
         <span className="action-text">
           <strong>Вручную</strong>
           <span className="muted small">Доход или расход без фото</span>
         </span>
       </button>
 
-      <input
-        ref={cameraInput}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        hidden
-        onChange={handleFile}
-      />
-      <input ref={galleryInput} type="file" accept="image/*" hidden onChange={handleFile} />
+      <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={handleReceipt} />
+      <input ref={galleryInput} type="file" accept="image/*" hidden onChange={handleReceipt} />
+      <input ref={pdfInput} type="file" accept="application/pdf,.pdf" hidden onChange={handleStatement} />
 
       <button className="action-card" disabled={uploading} onClick={() => cameraInput.current?.click()}>
-        <span className="action-icon">
+        <span className="action-icon" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
             <circle cx="12" cy="13" r="4" />
@@ -100,7 +97,7 @@ export default function AddScreen({ onManual, onUploaded, onStatement }: Props) 
       </button>
 
       <button className="action-card" disabled={uploading} onClick={() => galleryInput.current?.click()}>
-        <span className="action-icon">
+        <span className="action-icon" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <circle cx="8.5" cy="8.5" r="1.5" />
@@ -113,10 +110,8 @@ export default function AddScreen({ onManual, onUploaded, onStatement }: Props) 
         </span>
       </button>
 
-      <input ref={pdfInput} type="file" accept="application/pdf,.pdf" hidden onChange={handlePdf} />
-
       <button className="action-card" disabled={uploading} onClick={() => pdfInput.current?.click()}>
-        <span className="action-icon">
+        <span className="action-icon" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
             <path d="M14 3v5h5" />
@@ -129,12 +124,16 @@ export default function AddScreen({ onManual, onUploaded, onStatement }: Props) 
         </span>
       </button>
 
-      {uploading && <p className="muted">Загрузка и распознавание…</p>}
-      {error && <p className="error">{error}</p>}
-
-      <p className="muted small">
-        Чек также можно отправить прямо в чат с ботом — он обработает фото и напишет результат.
-      </p>
-    </section>
+      {uploading && (
+        <p className="muted" aria-live="polite">
+          Загрузка и распознавание…
+        </p>
+      )}
+      {error && (
+        <p className="error" aria-live="polite">
+          {error}
+        </p>
+      )}
+    </BottomSheet>
   )
 }

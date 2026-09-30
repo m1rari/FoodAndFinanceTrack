@@ -205,12 +205,16 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
     }
   }
 
-  const grouped = operations.reduce<Record<string, StatementOperationDto[]>>((acc, operation) => {
-    const key = dayKey(operation.occurredAt)
-    acc[key] = acc[key] ?? []
-    acc[key].push(operation)
-    return acc
-  }, {})
+  const grouped = operations.reduce<Record<string, Array<{ operation: StatementOperationDto; index: number }>>>(
+    (acc, operation, index) => {
+      const key = dayKey(operation.occurredAt)
+      const bucket = acc[key] ?? []
+      bucket.push({ operation, index })
+      acc[key] = bucket
+      return acc
+    },
+    {},
+  )
   const dayKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
 
   const categoryOptions = categories.filter((category) => category.type === (direction === 'income' ? 'Income' : 'Expense'))
@@ -249,15 +253,12 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
           {dayKeys.map((key) => (
             <div className="day-group" key={key}>
               <div className="day-header">
-                <span>{formatDayLabel(grouped[key][0].occurredAt)}</span>
+                <span>{formatDayLabel(grouped[key][0].operation.occurredAt)}</span>
               </div>
 
               <ul className="list">
-                {grouped[key].map((operation) => {
-                  const index = operations.indexOf(operation)
-
-                  return (
-                    <li key={`${operation.occurredAt}-${index}`}>
+                {grouped[key].map(({ operation, index }) => (
+                    <li key={index}>
                       <button
                         className={`list-item ${operation.isTransfer ? 'is-neutral' : operation.direction === 'income' ? 'is-income' : 'is-expense'}`}
                         disabled={confirmed}
@@ -281,8 +282,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
                         </span>
                       </button>
                     </li>
-                  )
-                })}
+                ))}
               </ul>
             </div>
           ))}

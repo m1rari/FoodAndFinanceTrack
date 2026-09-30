@@ -6,7 +6,6 @@ import { initTelegram } from './telegram/init'
 import { getStartParam, haptic } from './telegram/telegram'
 import { useBackButton } from './hooks/useBackButton'
 import OperationsScreen from './screens/OperationsScreen'
-import AddScreen from './screens/AddScreen'
 import TransactionFormScreen from './screens/TransactionFormScreen'
 import ReportScreen from './screens/ReportScreen'
 import PurchaseScreen from './screens/PurchaseScreen'
@@ -14,7 +13,7 @@ import FoodScreen from './screens/FoodScreen'
 import FoodDetailScreen from './screens/FoodDetailScreen'
 import StatementReviewScreen from './screens/StatementReviewScreen'
 
-type Tab = 'operations' | 'add' | 'food' | 'reports'
+type Tab = 'operations' | 'food' | 'reports'
 
 const EDITABLE_TAGS = ['INPUT', 'SELECT', 'TEXTAREA']
 
@@ -150,16 +149,10 @@ export default function App() {
             {tab === 'operations' && (
               <OperationsScreen
                 refreshKey={refreshKey}
-                onAdd={() => setTab('add')}
                 onEdit={(transaction) => setEditing(transaction)}
                 onOpenPurchase={(id) => setPurchaseId(id)}
-              />
-            )}
-            {tab === 'add' && (
-              <AddScreen
+                onOpenStatement={(id) => setStatementId(id)}
                 onManual={() => setManualOpen(true)}
-                onUploaded={(id) => setPurchaseId(id)}
-                onStatement={(id) => setStatementId(id)}
               />
             )}
             {tab === 'food' && (
@@ -217,32 +210,34 @@ export default function App() {
       </main>
 
       {!overlayOpen && (
-        <nav className="tabbar">
+        <nav className="tabbar" aria-label="Навигация">
           <button
             className={tab === 'operations' ? 'tab active' : 'tab'}
+            aria-current={tab === 'operations' ? 'page' : undefined}
             onClick={() => switchTab('operations')}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 3h14v18l-7-4-7 4z" />
             </svg>
             Операции
           </button>
-          <button className={tab === 'add' ? 'tab active' : 'tab'} onClick={() => switchTab('add')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 8v8M8 12h8" />
-            </svg>
-            Добавить
-          </button>
-          <button className={tab === 'food' ? 'tab active' : 'tab'} onClick={() => switchTab('food')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <button
+            className={tab === 'food' ? 'tab active' : 'tab'}
+            aria-current={tab === 'food' ? 'page' : undefined}
+            onClick={() => switchTab('food')}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3c3 3 5 5 5 9a5 5 0 0 1-10 0c0-4 2-6 5-9z" />
               <path d="M12 21v-6" />
             </svg>
             Питание
           </button>
-          <button className={tab === 'reports' ? 'tab active' : 'tab'} onClick={() => switchTab('reports')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <button
+            className={tab === 'reports' ? 'tab active' : 'tab'}
+            aria-current={tab === 'reports' ? 'page' : undefined}
+            onClick={() => switchTab('reports')}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 20V10M12 20V4M20 20v-6" />
             </svg>
             Отчёты

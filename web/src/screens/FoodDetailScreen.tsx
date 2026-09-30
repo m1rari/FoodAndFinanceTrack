@@ -314,7 +314,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
   return (
     <section className="screen">
       <header className="screen-header">
-        <button className="ghost back" onClick={onBack}>
+        <button className="ghost back" onClick={onBack} aria-label="Назад">
           ‹
         </button>
         <h1>{log?.dishName ?? 'Блюдо'}</h1>
@@ -382,7 +382,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
 
       <BottomSheet open={menuOpen} title="Ещё" onClose={() => setMenuOpen(false)}>
         <button className="action-card" disabled={sharing} onClick={handleShare}>
-          <span className="action-icon">
+          <span className="action-icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3" />
               <circle cx="6" cy="12" r="3" />
@@ -397,7 +397,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
         </button>
 
         <button className="action-card" onClick={() => { setMenuOpen(false); setDeleteOpen(true) }}>
-          <span className="action-icon danger-icon">
+          <span className="action-icon danger-icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
             </svg>

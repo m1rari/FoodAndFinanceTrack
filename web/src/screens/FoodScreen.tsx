@@ -218,11 +218,11 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
       <input ref={galleryInput} type="file" accept="image/*" hidden onChange={handleFile} />
 
       <div className="day-switch">
-        <button className="ghost" onClick={() => setDay((value) => addDays(value, -1))}>
+        <button className="ghost" aria-label="Предыдущий день" onClick={() => setDay((value) => addDays(value, -1))}>
           ‹
         </button>
         <span className="day-switch-title">{formatDayTitle(day)}</span>
-        <button className="ghost" onClick={() => setDay((value) => addDays(value, 1))}>
+        <button className="ghost" aria-label="Следующий день" onClick={() => setDay((value) => addDays(value, 1))}>
           ›
         </button>
       </div>
@@ -240,7 +240,18 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
       {loading && <p className="muted">Загрузка…</p>}
       {error && <p className="error">{error}</p>}
 
-      {!loading && logs.length === 0 && <p className="muted">За этот день блюд нет.</p>}
+      {!loading && logs.length === 0 && (
+        <div className="empty">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3c3 3 5 5 5 9a5 5 0 0 1-10 0c0-4 2-6 5-9z" />
+            <path d="M12 21v-6" />
+          </svg>
+          <p>За этот день блюд нет.</p>
+          <button className="primary" onClick={() => setMenuOpen(true)}>
+            Добавить блюдо
+          </button>
+        </div>
+      )}
 
       <ul className="list">
         {order.map((entry) =>
@@ -289,7 +300,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
 
       <BottomSheet open={menuOpen} title="Добавить блюдо" onClose={() => setMenuOpen(false)}>
         <button className="action-card" onClick={openCompose}>
-          <span className="action-icon">
+          <span className="action-icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />
             </svg>
@@ -347,10 +358,10 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
         )}
 
         <div className="segmented">
-          <button type="button" className="ghost" onClick={() => cameraInput.current?.click()}>
+          <button type="button" className="segment" onClick={() => cameraInput.current?.click()}>
             {pending ? 'Переснять' : 'Сфотографировать'}
           </button>
-          <button type="button" className="ghost" onClick={() => galleryInput.current?.click()}>
+          <button type="button" className="segment" onClick={() => galleryInput.current?.click()}>
             Из галереи
           </button>
         </div>
