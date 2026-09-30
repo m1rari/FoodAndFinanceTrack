@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { api, ApiError, setInitData } from './api/client'
-import type { TransactionDto, UserDto } from './api/types'
+import type { FoodSharePreviewDto, TransactionDto, UserDto } from './api/types'
+import BottomSheet from './components/BottomSheet'
 import { initTelegram } from './telegram/init'
 import { getStartParam, haptic } from './telegram/telegram'
 import { readUrlParam, writeUrlParams } from './utils/url'
@@ -17,6 +18,18 @@ import StatementReviewScreen from './screens/StatementReviewScreen'
 type Tab = 'operations' | 'food' | 'reports'
 
 const EDITABLE_TAGS = ['INPUT', 'SELECT', 'TEXTAREA']
+
+function formatRange(min: number | null, max: number | null): string {
+  if (min == null && max == null) {
+    return '—'
+  }
+
+  if (min != null && max != null) {
+    return `${Math.round(min)}–${Math.round(max)}`
+  }
+
+  return `${Math.round((min ?? max) as number)}`
+}
 
 export default function App() {
   const context = useMemo(() => initTelegram(), [])
@@ -36,6 +49,8 @@ export default function App() {
   const [statementId, setStatementId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [notice, setNotice] = useState<string | null>(null)
+  const [pendingShare, setPendingShare] = useState<{ token: string; preview: FoodSharePreviewDto } | null>(null)
+  const [sharing, setSharing] = useState(false)
 
   useEffect(() => {
     if (!context.initData) {
@@ -68,37 +83,44 @@ export default function App() {
     }
 
     const token = param.slice(3)
-    const storageKey = 'fft-claimed-shares'
-    let claimed: string[] = []
+    const claimedKey = 'fft-claimed-shares'
+    const dismissedKey = 'fft-dismissed-shares'
 
-    try {
-      claimed = JSON.parse(localStorage.getItem(storageKey) ?? '[]') as string[]
-    } catch {
-      claimed = []
+    const readTokens = (key: string): string[] => {
+      try {
+        return JSON.parse(localStorage.getItem(key) ?? '[]') as string[]
+      } catch {
+        return []
+      }
     }
 
-    if (claimed.includes(token)) {
+    if (readTokens(claimedKey).includes(token)) {
       const timer = window.setTimeout(() => setNotice('Это блюдо уже добавлено ранее.'), 0)
       return () => window.clearTimeout(timer)
     }
 
-    api
-      .claimFoodShare(token)
-      .then((log) => {
-        try {
-          localStorage.setItem(storageKey, JSON.stringify([...claimed, token]))
-        } catch {
-          // localStorage может быть недоступен
-        }
+    if (readTokens(dismissedKey).includes(token)) {
+      return
+    }
 
-        haptic('success')
-        setNotice('Блюдо из ссылки добавлено в дневник.')
-        setRefreshKey((value) => value + 1)
-        setFoodId(log.id)
+    let cancelled = false
+
+    api
+      .foodShare(token)
+      .then((preview) => {
+        if (!cancelled) {
+          setPendingShare({ token, preview })
+        }
       })
       .catch(() => {
-        setNotice('Ссылку на блюдо не удалось открыть: она недействительна или устарела.')
+        if (!cancelled) {
+          setNotice('Ссылку на блюдо не удалось открыть: она недействительна или устарела.')
+        }
       })
+
+    return () => {
+      cancelled = true
+    }
   }, [user])
 
   useEffect(() => {
@@ -160,8 +182,69 @@ export default function App() {
     setTab(next)
   }
 
+  function persistToken(key: string, token: string) {
+    try {
+      const list = JSON.parse(localStorage.getItem(key) ?? '[]') as string[]
+      localStorage.setItem(key, JSON.stringify([...list, token]))
+    } catch {
+      // localStorage может быть недоступен
+    }
+  }
+
+  function dismissSharedDish() {
+    if (pendingShare) {
+      persistToken('fft-dismissed-shares', pendingShare.token)
+    }
+
+    setPendingShare(null)
+  }
+
+  async function acceptSharedDish() {
+    if (!pendingShare) {
+      return
+    }
+
+    setSharing(true)
+
+    try {
+      await api.claimFoodShare(pendingShare.token)
+      persistToken('fft-claimed-shares', pendingShare.token)
+      haptic('success')
+      setPendingShare(null)
+      setNotice('Блюдо добавлено в дневник.')
+      setRefreshKey((value) => value + 1)
+    } catch (err: unknown) {
+      setNotice(err instanceof ApiError ? err.message : 'Не удалось добавить блюдо')
+    } finally {
+      setSharing(false)
+    }
+  }
+
   return (
     <div className="app">
+      <BottomSheet open={pendingShare !== null} title="Поделились блюдом" onClose={dismissSharedDish}>
+        {pendingShare && (
+          <>
+            <div className="card">
+              <strong>{pendingShare.preview.dishName}</strong>
+              <span className="muted small">
+                {formatRange(pendingShare.preview.caloriesMin, pendingShare.preview.caloriesMax)} ккал
+                {pendingShare.preview.userContext ? ` · ${pendingShare.preview.userContext}` : ''}
+              </span>
+            </div>
+
+            <div className="actions">
+              <button type="button" className="ghost" onClick={dismissSharedDish}>
+                Отмена
+              </button>
+              <button type="button" className="primary" disabled={sharing} onClick={acceptSharedDish}>
+                {sharing ? 'Добавление…' : 'Добавить в дневник'}
+              </button>
+            </div>
+          </>
+        )}
+      </BottomSheet>
+
       {notice && (
         <div className="notice" role="status" aria-live="polite">
           <span>{notice}</span>

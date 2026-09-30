@@ -4,6 +4,7 @@ import type {
   CreateTransactionRequest,
   FoodLogDto,
   FoodShareDto,
+  FoodSharePreviewDto,
   ReceiptDto,
   ReceiptSummaryDto,
   ReportSummaryDto,
@@ -173,6 +174,9 @@ export const api = {
 
   shareFoodLog: (id: string) =>
     request<FoodShareDto>(`/api/food-logs/${id}/share`, { method: 'POST' }),
+
+  foodShare: (token: string) =>
+    request<FoodSharePreviewDto>(`/api/food-shares/${encodeURIComponent(token)}`),
 
   claimFoodShare: (token: string) =>
     request<FoodLogDto>(`/api/food-shares/${encodeURIComponent(token)}/claim`, { method: 'POST' }),

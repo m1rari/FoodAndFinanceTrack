@@ -175,6 +175,16 @@ export interface FoodShareDto {
   url: string | null
 }
 
+export interface FoodSharePreviewDto {
+  dishName: string
+  userContext: string | null
+  caloriesMin: number | null
+  caloriesMax: number | null
+  proteinG: number | null
+  fatG: number | null
+  carbsG: number | null
+}
+
 export interface UpdateFoodLogRequest {
   dishName?: string | null
   userContext?: string | null
