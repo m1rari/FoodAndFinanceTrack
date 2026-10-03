@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { api, ApiError } from '../api/client'
 import type { ReportSummaryDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import CountUp from '../components/CountUp'
+import EmptyState from '../components/EmptyState'
+import Icon from '../components/Icon'
 import Skeleton from '../components/Skeleton'
 import { customPeriod, dayKey, formatPeriodLabel, periodFor } from '../utils/date'
 import type { Period, PeriodPreset } from '../utils/date'
 import { formatMoney } from '../utils/format'
+import { categoryVisual } from '../utils/visuals'
 import { readUrlParam, writeUrlParams } from '../utils/url'
 
 interface Props {
@@ -93,6 +98,19 @@ export default function ReportScreen({ refreshKey }: Props) {
 
   const maxCategory = Math.max(1, ...(summary?.byCategory.map((item) => item.total) ?? [1]))
 
+  const typeTotals = useMemo(() => {
+    const map = new Map<string, number>()
+
+    for (const item of summary?.byCategory ?? []) {
+      map.set(item.type, (map.get(item.type) ?? 0) + item.total)
+    }
+
+    return map
+  }, [summary])
+
+  const isEmpty = summary !== null && summary.byCategory.length === 0 && expenses.length === 0
+  const net = (summary?.totalIncome ?? 0) - (summary?.totalExpense ?? 0)
+
   function applyPreset(preset: PeriodPreset) {
     setPeriod(periodFor(preset))
   }
@@ -109,7 +127,12 @@ export default function ReportScreen({ refreshKey }: Props) {
   return (
     <section className="screen">
       <header className="screen-header">
-        <h1>Отчёты</h1>
+        <h1>
+          <span className="title-icon" aria-hidden="true">
+            <Icon name="chart" size={18} />
+          </span>
+          Отчёты
+        </h1>
       </header>
 
       <div className="chips-row">
@@ -123,6 +146,7 @@ export default function ReportScreen({ refreshKey }: Props) {
           Месяц
         </button>
         <button className={period.preset === 'custom' ? 'chip active' : 'chip'} onClick={() => setSheetOpen(true)}>
+          <Icon name="calendar" size={15} />
           {period.preset === 'custom' ? formatPeriodLabel(period) : 'Период…'}
         </button>
       </div>
@@ -134,25 +158,51 @@ export default function ReportScreen({ refreshKey }: Props) {
         </p>
       )}
 
-      {summary && (
+      {isEmpty && (
+        <EmptyState
+          art="chart"
+          title="Нет данных за период"
+          text="Отчёт появится, как только в выбранном периоде будут операции."
+        />
+      )}
+
+      {summary && !isEmpty && (
         <>
           <div className="cards">
             <div className="card">
-              <span className="muted small">Расходы</span>
-              <strong className="expense">−{formatMoney(summary.totalExpense, summary.currency)}</strong>
+              <span className="stat-label">
+                <Icon name="arrow-down" size={13} strokeWidth={2.4} />
+                Расходы
+              </span>
+              <CountUp
+                className="stat-value expense"
+                value={summary.totalExpense}
+                format={(value) => `−${formatMoney(value, summary.currency)}`}
+              />
             </div>
             <div className="card">
-              <span className="muted small">Доходы</span>
-              <strong className="income">+{formatMoney(summary.totalIncome, summary.currency)}</strong>
+              <span className="stat-label">
+                <Icon name="arrow-up" size={13} strokeWidth={2.4} />
+                Доходы
+              </span>
+              <CountUp
+                className="stat-value income"
+                value={summary.totalIncome}
+                format={(value) => `+${formatMoney(value, summary.currency)}`}
+              />
             </div>
           </div>
 
-          <div className="card">
-            <span className="muted small">Итого за период</span>
-            <strong className={summary.totalIncome - summary.totalExpense >= 0 ? 'income' : 'expense'}>
-              {summary.totalIncome - summary.totalExpense >= 0 ? '+' : '−'}
-              {formatMoney(Math.abs(summary.totalIncome - summary.totalExpense), summary.currency)}
-            </strong>
+          <div className={`card net-card ${net >= 0 ? 'is-income' : 'is-expense'}`}>
+            <span className="stat-label">
+              <Icon name={net >= 0 ? 'sparkles' : 'info'} size={13} strokeWidth={2.2} />
+              Итого за период
+            </span>
+            <CountUp
+              className={`stat-value ${net >= 0 ? 'income' : 'expense'}`}
+              value={Math.abs(net)}
+              format={(value) => `${net >= 0 ? '+' : '−'}${formatMoney(value, summary.currency)}`}
+            />
           </div>
 
           <h2 className="section-title">По категориям</h2>
@@ -160,20 +210,37 @@ export default function ReportScreen({ refreshKey }: Props) {
           {summary.byCategory.length === 0 && <p className="muted">Нет данных за период.</p>}
 
           <ul className="bars">
-            {summary.byCategory.map((item) => (
-              <li key={`${item.categoryId ?? 'none'}-${item.type}`}>
-                <div className="bar-head">
-                  <span>
-                    {item.categoryName ?? 'Без категории'}
-                    {item.type === 'Income' ? ' (доход)' : ''}
-                  </span>
-                  <span className="amount">{formatMoney(item.total, summary.currency)}</span>
-                </div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${(item.total / maxCategory) * 100}%` }} />
-                </div>
-              </li>
-            ))}
+            {summary.byCategory.map((item) => {
+              const visual = categoryVisual(item.categoryName, item.type)
+              const typeTotal = typeTotals.get(item.type) ?? item.total
+              const share = Math.round((item.total / Math.max(1, typeTotal)) * 100)
+
+              return (
+                <li key={`${item.categoryId ?? 'none'}-${item.type}`} style={{ '--cat': visual.color } as CSSProperties}>
+                  <div className="bar-head">
+                    <span className="bar-name">
+                      <span className="bar-icon" aria-hidden="true">
+                        <Icon name={visual.icon} size={15} />
+                      </span>
+                      <span>
+                        {item.categoryName ?? 'Без категории'}
+                        {item.type === 'Income' ? ' · доход' : ''}
+                      </span>
+                    </span>
+                    <span className="bar-values">
+                      <span className="bar-share">{share}%</span>
+                      <span className="amount">{formatMoney(item.total, summary.currency)}</span>
+                    </span>
+                  </div>
+                  <div className="bar-track">
+                    <div
+                      className="bar-fill"
+                      style={{ '--w': `${(item.total / maxCategory) * 100}%` } as CSSProperties}
+                    />
+                  </div>
+                </li>
+              )
+            })}
           </ul>
 
           {topStores.length > 0 && (
@@ -182,7 +249,12 @@ export default function ReportScreen({ refreshKey }: Props) {
               <ul className="list">
                 {topStores.map(([store, total]) => (
                   <li key={store} className="store-row">
-                    <span>{store}</span>
+                    <span className="bar-name">
+                      <span className="bar-icon" style={{ '--cat': 'var(--brand)' } as CSSProperties} aria-hidden="true">
+                        <Icon name="cart" size={15} />
+                      </span>
+                      <span>{store}</span>
+                    </span>
                     <span className="amount expense">−{formatMoney(total, summary.currency)}</span>
                   </li>
                 ))}

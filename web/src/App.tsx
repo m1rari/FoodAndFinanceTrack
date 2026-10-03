@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { MouseEvent } from 'react'
+import type { CSSProperties, MouseEvent } from 'react'
 import { api, ApiError, setInitData } from './api/client'
 import type { FoodSharePreviewDto, TransactionDto, UserDto } from './api/types'
 import BottomSheet from './components/BottomSheet'
+import Confetti from './components/Confetti'
+import EmptyState from './components/EmptyState'
+import Icon from './components/Icon'
+import type { IconName } from './components/Icon'
+import Splash from './components/Splash'
+import { useCelebration } from './hooks/useCelebration'
 import { initTelegram } from './telegram/init'
 import { getStartParam, haptic } from './telegram/telegram'
 import { readUrlParam, writeUrlParams } from './utils/url'
@@ -16,6 +22,24 @@ import FoodDetailScreen from './screens/FoodDetailScreen'
 import StatementReviewScreen from './screens/StatementReviewScreen'
 
 type Tab = 'operations' | 'food' | 'reports'
+type NoticeTone = 'info' | 'success' | 'error'
+
+interface Notice {
+  text: string
+  tone: NoticeTone
+}
+
+const TABS: Array<{ id: Tab; label: string; icon: IconName }> = [
+  { id: 'operations', label: 'Операции', icon: 'ledger' },
+  { id: 'food', label: 'Питание', icon: 'utensils' },
+  { id: 'reports', label: 'Отчёты', icon: 'chart' },
+]
+
+const NOTICE_ICONS: Record<NoticeTone, IconName> = {
+  info: 'info',
+  success: 'check',
+  error: 'alert',
+}
 
 const EDITABLE_TAGS = ['INPUT', 'SELECT', 'TEXTAREA']
 
@@ -48,9 +72,10 @@ export default function App() {
   const [foodId, setFoodId] = useState<string | null>(null)
   const [statementId, setStatementId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [pendingShare, setPendingShare] = useState<{ token: string; preview: FoodSharePreviewDto } | null>(null)
   const [sharing, setSharing] = useState(false)
+  const [celebration, celebrate] = useCelebration()
 
   useEffect(() => {
     if (!context.initData) {
@@ -95,7 +120,10 @@ export default function App() {
     }
 
     if (readTokens(claimedKey).includes(token)) {
-      const timer = window.setTimeout(() => setNotice('Это блюдо уже добавлено ранее.'), 0)
+      const timer = window.setTimeout(
+        () => setNotice({ text: 'Это блюдо уже добавлено ранее.', tone: 'info' }),
+        0,
+      )
       return () => window.clearTimeout(timer)
     }
 
@@ -114,7 +142,10 @@ export default function App() {
       })
       .catch(() => {
         if (!cancelled) {
-          setNotice('Ссылку на блюдо не удалось открыть: она недействительна или устарела.')
+          setNotice({
+            text: 'Ссылку на блюдо не удалось открыть: она недействительна или устарела.',
+            tone: 'error',
+          })
         }
       })
 
@@ -152,11 +183,19 @@ export default function App() {
   }
 
   if (loading) {
-    return <div className="centered">Авторизация…</div>
+    return <Splash label="Авторизация…" />
   }
 
   if (error || !user) {
-    return <div className="centered error">{error ?? 'Ошибка авторизации'}</div>
+    return (
+      <div className="centered">
+        <EmptyState
+          art="error"
+          title="Не удалось открыть"
+          text={error ?? 'Ошибка авторизации'}
+        />
+      </div>
+    )
   }
 
   function closeOverlays() {
@@ -210,11 +249,15 @@ export default function App() {
       await api.claimFoodShare(pendingShare.token)
       persistToken('fft-claimed-shares', pendingShare.token)
       haptic('success')
+      celebrate()
       setPendingShare(null)
-      setNotice('Блюдо добавлено в дневник.')
+      setNotice({ text: 'Блюдо добавлено в дневник.', tone: 'success' })
       setRefreshKey((value) => value + 1)
     } catch (err: unknown) {
-      setNotice(err instanceof ApiError ? err.message : 'Не удалось добавить блюдо')
+      setNotice({
+        text: err instanceof ApiError ? err.message : 'Не удалось добавить блюдо',
+        tone: 'error',
+      })
     } finally {
       setSharing(false)
     }
@@ -222,6 +265,8 @@ export default function App() {
 
   return (
     <div className="app">
+      <Confetti trigger={celebration} />
+
       <BottomSheet open={pendingShare !== null} title="Поделились блюдом" onClose={dismissSharedDish}>
         {pendingShare && (
           <>
@@ -238,6 +283,7 @@ export default function App() {
                 Отмена
               </button>
               <button type="button" className="primary" disabled={sharing} onClick={acceptSharedDish}>
+                <Icon name="plus" size={18} />
                 {sharing ? 'Добавление…' : 'Добавить в дневник'}
               </button>
             </div>
@@ -246,17 +292,20 @@ export default function App() {
       </BottomSheet>
 
       {notice && (
-        <div className="notice" role="status" aria-live="polite">
-          <span>{notice}</span>
+        <div className={`notice is-${notice.tone}`} role="status" aria-live="polite">
+          <span className="notice-icon" aria-hidden="true">
+            <Icon name={NOTICE_ICONS[notice.tone]} size={16} strokeWidth={2.2} />
+          </span>
+          <span className="notice-text">{notice.text}</span>
           <button className="notice-close" aria-label="Закрыть" onClick={() => setNotice(null)}>
-            ✕
+            <Icon name="close" size={16} strokeWidth={2.2} />
           </button>
         </div>
       )}
 
       <main className="content" onClick={handleContentClick}>
         {!overlayOpen && (
-          <>
+          <div className="screen-slot" key={tab}>
             {tab === 'operations' && (
               <OperationsScreen
                 refreshKey={refreshKey}
@@ -277,34 +326,37 @@ export default function App() {
               />
             )}
             {tab === 'reports' && <ReportScreen refreshKey={refreshKey} />}
-          </>
+          </div>
         )}
 
         {overlayOpen && purchaseId !== null && (
-          <PurchaseScreen
-            key={purchaseId}
-            receiptId={purchaseId}
-            onBack={closeOverlays}
-            onChanged={() => setRefreshKey((value) => value + 1)}
-          />
+          <div className="screen-slot" key={purchaseId}>
+            <PurchaseScreen
+              receiptId={purchaseId}
+              onBack={closeOverlays}
+              onChanged={() => setRefreshKey((value) => value + 1)}
+            />
+          </div>
         )}
 
         {overlayOpen && purchaseId === null && foodId !== null && (
-          <FoodDetailScreen
-            key={foodId}
-            foodId={foodId}
-            onBack={closeOverlays}
-            onChanged={() => setRefreshKey((value) => value + 1)}
-          />
+          <div className="screen-slot" key={foodId}>
+            <FoodDetailScreen
+              foodId={foodId}
+              onBack={closeOverlays}
+              onChanged={() => setRefreshKey((value) => value + 1)}
+            />
+          </div>
         )}
 
         {overlayOpen && purchaseId === null && foodId === null && statementId !== null && (
-          <StatementReviewScreen
-            key={statementId}
-            statementId={statementId}
-            onBack={closeOverlays}
-            onChanged={() => setRefreshKey((value) => value + 1)}
-          />
+          <div className="screen-slot" key={statementId}>
+            <StatementReviewScreen
+              statementId={statementId}
+              onBack={closeOverlays}
+              onChanged={() => setRefreshKey((value) => value + 1)}
+            />
+          </div>
         )}
 
         {overlayOpen &&
@@ -312,47 +364,34 @@ export default function App() {
           foodId === null &&
           statementId === null &&
           (manualOpen || editing) && (
-            <TransactionFormScreen
-              transaction={editing}
-              onDone={handleSaved}
-              onCancel={closeOverlays}
-            />
+            <div className="screen-slot" key={editing?.id ?? 'manual'}>
+              <TransactionFormScreen
+                transaction={editing}
+                onDone={handleSaved}
+                onCancel={closeOverlays}
+              />
+            </div>
           )}
       </main>
 
       {!overlayOpen && (
-        <nav className="tabbar" aria-label="Навигация">
-          <button
-            className={tab === 'operations' ? 'tab active' : 'tab'}
-            aria-current={tab === 'operations' ? 'page' : undefined}
-            onClick={() => switchTab('operations')}
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 3h14v18l-7-4-7 4z" />
-            </svg>
-            Операции
-          </button>
-          <button
-            className={tab === 'food' ? 'tab active' : 'tab'}
-            aria-current={tab === 'food' ? 'page' : undefined}
-            onClick={() => switchTab('food')}
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3c3 3 5 5 5 9a5 5 0 0 1-10 0c0-4 2-6 5-9z" />
-              <path d="M12 21v-6" />
-            </svg>
-            Питание
-          </button>
-          <button
-            className={tab === 'reports' ? 'tab active' : 'tab'}
-            aria-current={tab === 'reports' ? 'page' : undefined}
-            onClick={() => switchTab('reports')}
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 20V10M12 20V4M20 20v-6" />
-            </svg>
-            Отчёты
-          </button>
+        <nav
+          className="tabbar"
+          aria-label="Навигация"
+          style={{ '--tab-index': TABS.findIndex((item) => item.id === tab) } as CSSProperties}
+        >
+          <span className="tab-indicator" aria-hidden="true" />
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              className={tab === item.id ? 'tab active' : 'tab'}
+              aria-current={tab === item.id ? 'page' : undefined}
+              onClick={() => switchTab(item.id)}
+            >
+              <Icon name={item.icon} size={21} />
+              {item.label}
+            </button>
+          ))}
         </nav>
       )}
     </div>

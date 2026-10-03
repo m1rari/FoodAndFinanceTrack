@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { api, ApiError, fetchReceiptImage } from '../api/client'
 import type { CategoryDto, ReceiptDto, ReceiptItemDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import CategorySelect from '../components/CategorySelect'
+import Confetti from '../components/Confetti'
+import Icon from '../components/Icon'
 import Skeleton from '../components/Skeleton'
+import { useCelebration } from '../hooks/useCelebration'
 import { haptic } from '../telegram/telegram'
 import { formatDate, formatMoney } from '../utils/format'
+import { categoryVisual } from '../utils/visuals'
 
 interface Props {
   receiptId: string
@@ -43,6 +48,7 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
   const [price, setPrice] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [celebration, celebrate] = useCelebration()
 
   useEffect(() => {
     let cancelled = false
@@ -265,6 +271,7 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
       const confirmed = await api.confirmReceipt(receipt.id)
       setReceipt(confirmed)
       haptic('success')
+      celebrate()
       onChanged()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось провести покупку')
@@ -275,17 +282,25 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
 
   return (
     <section className="screen">
+      <Confetti trigger={celebration} />
+
       <header className="screen-header">
-        <button className="ghost back" onClick={onBack}>
-          ‹ Назад
+        <button className="ghost back" onClick={onBack} aria-label="Назад">
+          <Icon name="chevron-left" size={20} strokeWidth={2.2} />
         </button>
-        <h1>Покупка</h1>
+        <h1>
+          <span className="title-icon" aria-hidden="true">
+            <Icon name="ledger" size={18} />
+          </span>
+          Покупка
+        </h1>
         <span />
       </header>
 
       {loading && <Skeleton rows={3} />}
       {error && (
-        <p className="error" aria-live="polite">
+        <p className="error loading-row" aria-live="polite">
+          <Icon name="alert" size={16} strokeWidth={2.1} />
           {error}
         </p>
       )}
@@ -293,8 +308,16 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
       {receipt && (
         <>
           <div className="status-row">
-            <p className="status">{STATUS_LABELS[receipt.status] ?? receipt.status}</p>
-            {receipt.confirmed && <p className="status confirmed">В операциях</p>}
+            <p className={`status ${receipt.status === 'Processed' ? 'confirmed' : ''}`}>
+              {receipt.status === 'Pending' && <span className="spinner" aria-hidden="true" />}
+              {receipt.status === 'Failed' && <Icon name="alert" size={13} strokeWidth={2.2} />}
+              {STATUS_LABELS[receipt.status] ?? receipt.status}
+            </p>
+            {receipt.confirmed && (
+              <p className="status confirmed">
+                <Icon name="check" size={13} strokeWidth={2.4} />В операциях
+              </p>
+            )}
           </div>
 
           {previewUrl && (
@@ -321,7 +344,9 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
 
           {!receipt.confirmed && receipt.status !== 'Pending' && !matchesDismissed && matches.length > 0 && (
             <div className="match-card">
-              <p className="small">Похоже, эта покупка уже добавлена вручную:</p>
+              <p className="small">
+                <Icon name="info" size={15} strokeWidth={2.2} /> Похоже, эта покупка уже добавлена вручную:
+              </p>
               {matches.map((match) => (
                 <div className="match-row" key={match.id}>
                   <div>
@@ -332,6 +357,7 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
                     </div>
                   </div>
                   <button className="primary small-button" onClick={() => handleLink(match.id)}>
+                    <Icon name="check" size={16} strokeWidth={2.3} />
                     Прикрепить
                   </button>
                 </div>
@@ -355,39 +381,49 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
           )}
 
           <ul className="list">
-            {receipt.items.map((item) => (
-              <li key={item.id}>
-                <button className="list-item" disabled={receipt.confirmed} onClick={() => openEditor(item)}>
-                  <span className="list-main">
-                    <span className="list-title">{item.name}</span>
-                    <span className="muted small">
-                      {item.quantity} × {formatMoney(item.unitPrice)}
-                      {item.categoryName ? ` · ${item.categoryName}` : ''}
-                      {item.confidence !== null && item.confidence < 0.6 ? ' · низкая уверенность' : ''}
+            {receipt.items.map((item) => {
+              const visual = categoryVisual(item.categoryName, 'Expense')
+
+              return (
+                <li key={item.id}>
+                  <button className="list-item" disabled={receipt.confirmed} onClick={() => openEditor(item)}>
+                    <span className="list-badge" style={{ '--cat': visual.color } as CSSProperties} aria-hidden="true">
+                      <Icon name={visual.icon} size={18} />
                     </span>
-                  </span>
-                  <span className="list-right">
-                    <span className="amount">{formatMoney(item.totalPrice)}</span>
-                    {!receipt.confirmed && <span className="muted small">Изменить</span>}
-                  </span>
-                </button>
-              </li>
-            ))}
+                    <span className="list-main">
+                      <span className="list-title">{item.name}</span>
+                      <span className="muted small">
+                        {item.quantity} × {formatMoney(item.unitPrice)}
+                        {item.categoryName ? ` · ${item.categoryName}` : ''}
+                        {item.confidence !== null && item.confidence < 0.6 ? ' · низкая уверенность' : ''}
+                      </span>
+                    </span>
+                    <span className="list-right">
+                      <span className="amount">{formatMoney(item.totalPrice)}</span>
+                      {!receipt.confirmed && <span className="muted small">Изменить</span>}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
 
           {!receipt.confirmed && receipt.status !== 'Pending' && (
             <button className="ghost" onClick={() => openEditor(null)}>
-              + Добавить товар
+              <Icon name="plus" size={18} />
+              Добавить товар
             </button>
           )}
 
           {!receipt.confirmed && receipt.items.length > 0 && receipt.status !== 'Pending' && (
             <button className="primary" disabled={confirming} onClick={handleConfirm}>
+              <Icon name="check" size={18} strokeWidth={2.2} />
               {confirming ? 'Проведение…' : `Провести покупку · ${formatMoney(receipt.totalAmount ?? 0)}`}
             </button>
           )}
 
           <button className="danger" onClick={() => setDeleteOpen(true)}>
+            <Icon name="trash" size={18} />
             Удалить покупку
           </button>
         </>
@@ -404,6 +440,7 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
             Отмена
           </button>
           <button type="button" className="danger" disabled={deleting} onClick={handleDelete}>
+            <Icon name="trash" size={18} />
             {deleting ? 'Удаление…' : 'Удалить'}
           </button>
         </div>
@@ -444,14 +481,7 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
 
           <label className="field">
             <span>Категория</span>
-            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-              <option value="">Без категории</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+            <CategorySelect value={categoryId} onChange={setCategoryId} categories={categories} />
           </label>
 
           <div className="actions">
@@ -459,6 +489,7 @@ export default function PurchaseScreen({ receiptId, onBack, onChanged }: Props) 
               Отмена
             </button>
             <button type="submit" className="primary" disabled={saving}>
+              <Icon name="check" size={18} strokeWidth={2.2} />
               {saving ? 'Сохранение…' : 'Сохранить'}
             </button>
           </div>

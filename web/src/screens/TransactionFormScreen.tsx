@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { api, ApiError } from '../api/client'
 import type { CategoryDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import CategorySelect from '../components/CategorySelect'
+import Confetti from '../components/Confetti'
+import Icon from '../components/Icon'
+import { useCelebration } from '../hooks/useCelebration'
 import { useMainButton } from '../hooks/useMainButton'
 import { haptic, isMainButtonAvailable } from '../telegram/telegram'
 
@@ -32,6 +36,7 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
   const [error, setError] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [celebration, celebrate] = useCelebration()
 
   useEffect(() => {
     let cancelled = false
@@ -92,6 +97,7 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
       }
 
       haptic('success')
+      celebrate()
       onDone()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось сохранить операцию')
@@ -135,15 +141,29 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
 
   return (
     <section className="screen">
+      <Confetti trigger={celebration} />
+
       <header className="screen-header">
-        <h1>{isEdit ? 'Редактирование' : 'Новая операция'}</h1>
+        <h1>
+          <span
+            className="title-icon"
+            style={{ '--cat': isEdit ? 'var(--violet)' : 'var(--brand)' } as CSSProperties}
+            aria-hidden="true"
+          >
+            <Icon name={isEdit ? 'pencil' : 'plus'} size={18} />
+          </span>
+          {isEdit ? 'Редактирование' : 'Новая операция'}
+        </h1>
       </header>
 
       <form className="form" onSubmit={handleSubmit}>
         {isEdit ? (
           <label className="field">
             <span>Тип</span>
-            <div className="static-value">{type === 'Income' ? 'Доход' : 'Расход'}</div>
+            <div className="static-value">
+              <Icon name={type === 'Income' ? 'arrow-up' : 'arrow-down'} size={16} strokeWidth={2.2} />
+              {type === 'Income' ? 'Доход' : 'Расход'}
+            </div>
           </label>
         ) : (
           <div className="segmented">
@@ -155,6 +175,7 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
                 setCategoryId('')
               }}
             >
+              <Icon name="arrow-down" size={16} strokeWidth={2.2} />
               Расход
             </button>
             <button
@@ -165,6 +186,7 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
                 setCategoryId('')
               }}
             >
+              <Icon name="arrow-up" size={16} strokeWidth={2.2} />
               Доход
             </button>
           </div>
@@ -185,14 +207,7 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
 
         <label className="field">
           <span>Категория</span>
-          <select name="category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-            <option value="">Без категории</option>
-            {available.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+          <CategorySelect name="category" value={categoryId} onChange={setCategoryId} categories={available} />
         </label>
 
         <label className="field">
@@ -211,7 +226,12 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
           />
         </label>
 
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error loading-row">
+            <Icon name="alert" size={16} strokeWidth={2.1} />
+            {error}
+          </p>
+        )}
 
         <div className="actions">
           <button type="button" className="ghost" onClick={onCancel}>
@@ -219,6 +239,7 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
           </button>
           {!mainButtonAvailable && (
             <button type="submit" className="primary" disabled={saving}>
+              <Icon name="check" size={18} strokeWidth={2.2} />
               {saving ? 'Сохранение…' : 'Сохранить'}
             </button>
           )}
@@ -227,6 +248,7 @@ export default function TransactionFormScreen({ transaction, onDone, onCancel }:
 
       {isEdit && (
         <button className="danger" onClick={() => setDeleteOpen(true)}>
+          <Icon name="trash" size={18} />
           Удалить операцию
         </button>
       )}

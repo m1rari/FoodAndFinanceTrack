@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, CSSProperties } from 'react'
 import { api, ApiError } from '../api/client'
 import type { FoodLogDto, SavedDishDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import Confetti from '../components/Confetti'
+import EmptyState from '../components/EmptyState'
+import Icon from '../components/Icon'
+import MacroRing from '../components/MacroRing'
 import Skeleton from '../components/Skeleton'
+import { useCelebration } from '../hooks/useCelebration'
 import { haptic } from '../telegram/telegram'
 import { compressImage } from '../utils/image'
 import { addDays, dayKey, dayRange, formatDayTitle } from '../utils/date'
 import { formatTime } from '../utils/format'
+import { MACRO_COLORS, mealVisual } from '../utils/visuals'
 
 interface Props {
   refreshKey: number
@@ -54,6 +60,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
   const [localRefresh, setLocalRefresh] = useState(0)
   const [pending, setPending] = useState<{ blob: Blob; fileName: string; previewUrl: string } | null>(null)
   const [context, setContext] = useState('')
+  const [celebration, celebrate] = useCelebration()
 
   useEffect(() => {
     let cancelled = false
@@ -158,6 +165,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
       setContext('')
       setComposeOpen(false)
       haptic('success')
+      celebrate()
       onUploaded(created.id)
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось добавить блюдо')
@@ -184,6 +192,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
       setMenuOpen(false)
       setLocalRefresh((value) => value + 1)
       haptic('success')
+      celebrate()
     } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Не удалось добавить блюдо')
     } finally {
@@ -204,8 +213,12 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
   const recents = saved.filter((dish) => !dish.isFavorite).slice(0, 10)
   const quickDishes = [...favorites, ...recents].slice(0, 12)
   const isToday = dayKey(day.toISOString()) === dayKey(new Date().toISOString())
-  const calories = range(sum(logs.map((log) => log.caloriesMin)), sum(logs.map((log) => log.caloriesMax)))
+  const caloriesMin = sum(logs.map((log) => log.caloriesMin))
+  const caloriesMax = sum(logs.map((log) => log.caloriesMax))
   const hasCalories = logs.some((log) => log.caloriesMin != null || log.caloriesMax != null)
+  const proteinMid = (sum(logs.map((log) => log.proteinMinG)) + sum(logs.map((log) => log.proteinMaxG))) / 2
+  const fatMid = (sum(logs.map((log) => log.fatMinG)) + sum(logs.map((log) => log.fatMaxG))) / 2
+  const carbsMid = (sum(logs.map((log) => log.carbsMinG)) + sum(logs.map((log) => log.carbsMaxG))) / 2
 
   const mealGroups = new Map<string, FoodLogDto[]>()
   const order: Array<{ type: 'single'; log: FoodLogDto } | { type: 'meal'; id: string }> = []
@@ -225,10 +238,18 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
 
   return (
     <section className="screen">
+      <Confetti trigger={celebration} />
+
       <header className="screen-header">
-        <h1>Питание</h1>
+        <h1>
+          <span className="title-icon" aria-hidden="true">
+            <Icon name="utensils" size={18} />
+          </span>
+          Питание
+        </h1>
         <button className="primary" onClick={() => setMenuOpen(true)}>
-          + Блюдо
+          <Icon name="plus" size={18} />
+          Блюдо
         </button>
       </header>
 
@@ -237,23 +258,43 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
 
       <div className="day-switch">
         <button className="ghost" aria-label="Предыдущий день" onClick={() => setDay((value) => addDays(value, -1))}>
-          ‹
+          <Icon name="chevron-left" size={20} strokeWidth={2.1} />
         </button>
         <span className="day-switch-title">{formatDayTitle(day)}</span>
         <button className="ghost" aria-label="Следующий день" onClick={() => setDay((value) => addDays(value, 1))}>
-          ›
+          <Icon name="chevron-right" size={20} strokeWidth={2.1} />
         </button>
       </div>
 
-      <div className="card">
-        <span className="muted small">Калории за день (оценка)</span>
-        <strong>{hasCalories ? `${calories} ккал` : '—'}</strong>
-        <span className="muted small">
-          Б {range(sum(logs.map((log) => log.proteinMinG)), sum(logs.map((log) => log.proteinMaxG)))} · Ж{' '}
-          {range(sum(logs.map((log) => log.fatMinG)), sum(logs.map((log) => log.fatMaxG)))} · У{' '}
-          {range(sum(logs.map((log) => log.carbsMinG)), sum(logs.map((log) => log.carbsMaxG)))} г
-        </span>
-      </div>
+      {logs.length > 0 && (
+        <div className="card day-summary">
+          <MacroRing
+            calories={hasCalories ? String(Math.round((caloriesMin + caloriesMax) / 2)) : '—'}
+            protein={proteinMid}
+            fat={fatMid}
+            carbs={carbsMid}
+          />
+
+          <div className="macro-legend">
+            <span className="muted small">Калории за день (оценка AI)</span>
+            <span className="macro-row">
+              <span className="macro-dot" style={{ '--cat': MACRO_COLORS.protein } as CSSProperties} aria-hidden="true" />
+              Белки
+              <strong>{range(sum(logs.map((log) => log.proteinMinG)), sum(logs.map((log) => log.proteinMaxG)))} г</strong>
+            </span>
+            <span className="macro-row">
+              <span className="macro-dot" style={{ '--cat': MACRO_COLORS.fat } as CSSProperties} aria-hidden="true" />
+              Жиры
+              <strong>{range(sum(logs.map((log) => log.fatMinG)), sum(logs.map((log) => log.fatMaxG)))} г</strong>
+            </span>
+            <span className="macro-row">
+              <span className="macro-dot" style={{ '--cat': MACRO_COLORS.carbs } as CSSProperties} aria-hidden="true" />
+              Углеводы
+              <strong>{range(sum(logs.map((log) => log.carbsMinG)), sum(logs.map((log) => log.carbsMaxG)))} г</strong>
+            </span>
+          </div>
+        </div>
+      )}
 
       {isToday && quickDishes.length > 0 && (
         <>
@@ -261,6 +302,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
           <div className="chips-row">
             {quickDishes.map((dish) => (
                 <button key={dish.id} className="chip" onClick={() => openConfirm(dish)}>
+                <Icon name={dish.isFavorite ? 'star-filled' : 'plus'} size={14} strokeWidth={2.2} />
                 {dish.name}
               </button>
             ))}
@@ -276,47 +318,58 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
       )}
 
       {!loading && logs.length === 0 && (
-        <div className="empty">
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 3c3 3 5 5 5 9a5 5 0 0 1-10 0c0-4 2-6 5-9z" />
-            <path d="M12 21v-6" />
-          </svg>
-          <p>За этот день блюд нет.</p>
+        <EmptyState art="plate" title="Дневник пуст" text="Сфотографируйте блюдо или опишите его словами — AI оценит калории и БЖУ.">
           <button className="primary" onClick={() => setMenuOpen(true)}>
+            <Icon name="plus" size={18} />
             Добавить блюдо
           </button>
-        </div>
+        </EmptyState>
       )}
 
       <ul className="list">
-        {order.map((entry) =>
-          entry.type === 'single' ? (
-            <li key={entry.log.id}>
-              <button className="list-item is-neutral" onClick={() => onOpen(entry.log.id)}>
-                <span className="list-main">
-                  <span className="list-title">{entry.log.dishName ?? 'Блюдо'}</span>
-                  <span className="muted small">
-                    {formatTime(entry.log.eatenAt)}
-                    {STATUS_LABELS[entry.log.status] ? ` · ${STATUS_LABELS[entry.log.status]}` : ''}
+        {order.map((entry) => {
+          if (entry.type === 'single') {
+            const meal = mealVisual(entry.log.eatenAt)
+
+            return (
+              <li key={entry.log.id}>
+                <button className="list-item is-neutral" onClick={() => onOpen(entry.log.id)}>
+                  <span className="list-badge" style={{ '--cat': meal.color } as CSSProperties} aria-hidden="true">
+                    <Icon name={meal.icon} size={18} />
                   </span>
-                </span>
-                <span className="list-right">
-                  <span className="amount">
-                    {entry.log.caloriesMin != null || entry.log.caloriesMax != null
-                      ? `${range(entry.log.caloriesMin, entry.log.caloriesMax)} ккал`
-                      : '—'}
+                  <span className="list-main">
+                    <span className="list-title">{entry.log.dishName ?? 'Блюдо'}</span>
+                    <span className="muted small">
+                      {meal.label} · {formatTime(entry.log.eatenAt)}
+                      {STATUS_LABELS[entry.log.status] ? ` · ${STATUS_LABELS[entry.log.status]}` : ''}
+                    </span>
                   </span>
-                  <span className="muted small">Открыть ›</span>
-                </span>
-              </button>
-            </li>
-          ) : (
-            <li key={entry.id} className="meal-card">
+                  <span className="list-right">
+                    <span className="amount">
+                      {entry.log.caloriesMin != null || entry.log.caloriesMax != null
+                        ? `${range(entry.log.caloriesMin, entry.log.caloriesMax)} ккал`
+                        : '—'}
+                    </span>
+                    <span className="muted small">Открыть ›</span>
+                  </span>
+                </button>
+              </li>
+            )
+          }
+
+          const group = mealGroups.get(entry.id)!
+          const meal = mealVisual(group[0].eatenAt)
+
+          return (
+            <li key={entry.id} className="meal-card" style={{ '--cat': meal.color } as CSSProperties}>
               <div className="meal-head">
-                <span>Приём пищи</span>
-                <span className="muted small">{formatTime(mealGroups.get(entry.id)![0].eatenAt)}</span>
+                <span>
+                  <Icon name={meal.icon} size={14} strokeWidth={2.1} />
+                  {meal.label}
+                </span>
+                <span className="muted small">{formatTime(group[0].eatenAt)}</span>
               </div>
-              {mealGroups.get(entry.id)!.map((log) => (
+              {group.map((log) => (
                 <button key={log.id} className="meal-item" onClick={() => onOpen(log.id)}>
                   <span className="list-title">{log.dishName ?? 'Блюдо'}</span>
                   <span className="amount">
@@ -329,16 +382,14 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
                 </button>
               ))}
             </li>
-          ),
-        )}
+          )
+        })}
       </ul>
 
       <BottomSheet open={menuOpen} title="Добавить блюдо" onClose={() => setMenuOpen(false)}>
-        <button className="action-card" onClick={openCompose}>
+        <button className="action-card" style={{ '--cat': 'var(--brand)' } as CSSProperties} onClick={openCompose}>
           <span className="action-icon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
+            <Icon name="sparkles" size={20} />
           </span>
           <span className="action-text">
             <strong>Новое блюдо</strong>
@@ -357,7 +408,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
                     <span className="muted small">{range(dish.caloriesMin, dish.caloriesMax)} ккал</span>
                   </button>
                   <button className="star on" onClick={() => toggleFavorite(dish)} aria-label="Убрать из избранного">
-                    ★
+                    <Icon name="star-filled" size={20} />
                   </button>
                 </li>
               ))}
@@ -376,7 +427,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
                     <span className="muted small">{range(dish.caloriesMin, dish.caloriesMax)} ккал</span>
                   </button>
                   <button className="star" onClick={() => toggleFavorite(dish)} aria-label="В избранное">
-                    ☆
+                    <Icon name="star" size={20} />
                   </button>
                 </li>
               ))}
@@ -394,9 +445,11 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
 
         <div className="segmented">
           <button type="button" className="segment" onClick={() => cameraInput.current?.click()}>
+            <Icon name="camera" size={17} />
             {pending ? 'Переснять' : 'Сфотографировать'}
           </button>
           <button type="button" className="segment" onClick={() => galleryInput.current?.click()}>
+            <Icon name="image" size={17} />
             Из галереи
           </button>
         </div>
@@ -410,6 +463,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
               setPending(null)
             }}
           >
+            <Icon name="trash" size={17} />
             Убрать фото
           </button>
         )}
@@ -458,6 +512,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
                 Отмена
               </button>
               <button type="button" className="primary" disabled={adding} onClick={confirmAdd}>
+                <Icon name="plus" size={18} />
                 {adding ? 'Добавление…' : 'Добавить в дневник'}
               </button>
             </div>

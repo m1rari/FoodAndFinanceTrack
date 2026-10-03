@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { api, ApiError } from '../api/client'
 import type { CategoryDto, ReceiptSummaryDto, TransactionDto } from '../api/types'
 import AddSheet from '../components/AddSheet'
 import BottomSheet from '../components/BottomSheet'
+import CategorySelect from '../components/CategorySelect'
+import CountUp from '../components/CountUp'
+import EmptyState from '../components/EmptyState'
+import Icon from '../components/Icon'
 import Skeleton from '../components/Skeleton'
 import { customPeriod, dayKey, formatDayLabel, formatPeriodLabel, periodFor } from '../utils/date'
 import type { Period, PeriodPreset } from '../utils/date'
 import { formatMoney, plural } from '../utils/format'
+import { purchaseVisual, transactionVisual } from '../utils/visuals'
 import { readUrlParam, writeUrlParams } from '../utils/url'
 
 interface Props {
@@ -254,9 +260,15 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
   return (
     <section className="screen">
       <header className="screen-header">
-        <h1>Операции</h1>
+        <h1>
+          <span className="title-icon" aria-hidden="true">
+            <Icon name="ledger" size={18} />
+          </span>
+          Операции
+        </h1>
         <button className="primary" onClick={() => setAddOpen(true)}>
-          + Добавить
+          <Icon name="plus" size={18} />
+          Добавить
         </button>
       </header>
 
@@ -274,19 +286,34 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
           className={filtersActive ? 'chip active' : 'chip'}
           onClick={() => setFiltersOpen(true)}
         >
+          <Icon name="filter" size={15} />
           {period.preset === 'custom' ? formatPeriodLabel(period) : 'Фильтры'}
         </button>
       </div>
 
       {items.length > 0 && (
         <div className="stat-strip">
-          <div className="stat">
-            <span className="stat-label">Доход</span>
-            <span className="stat-value income">+{formatMoney(totals.income, totals.currency)}</span>
+          <div className="stat is-income">
+            <span className="stat-label">
+              <Icon name="arrow-up" size={13} strokeWidth={2.4} />
+              Доход
+            </span>
+            <CountUp
+              className="stat-value income"
+              value={totals.income}
+              format={(value) => `+${formatMoney(value, totals.currency)}`}
+            />
           </div>
-          <div className="stat">
-            <span className="stat-label">Расход</span>
-            <span className="stat-value expense">−{formatMoney(totals.expense, totals.currency)}</span>
+          <div className="stat is-expense">
+            <span className="stat-label">
+              <Icon name="arrow-down" size={13} strokeWidth={2.4} />
+              Расход
+            </span>
+            <CountUp
+              className="stat-value expense"
+              value={totals.expense}
+              format={(value) => `−${formatMoney(value, totals.currency)}`}
+            />
           </div>
         </div>
       )}
@@ -298,6 +325,9 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
             {receipts.map((receipt) => (
               <li key={receipt.id}>
                 <button className="list-item is-purchase" onClick={() => onOpenPurchase(receipt.id)}>
+                  <span className="list-badge" style={{ '--cat': 'var(--brand)' } as CSSProperties} aria-hidden="true">
+                    <Icon name="ledger" size={18} />
+                  </span>
                   <span className="list-main">
                     <span className="list-title">{receipt.merchantName ?? 'Покупка'}</span>
                     <span className="muted small">
@@ -327,15 +357,12 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
       )}
 
       {!loading && !error && items.length === 0 && receipts.length === 0 && (
-        <div className="empty">
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 3h14v18l-7-4-7 4z" />
-          </svg>
-          <p>За выбранный период операций нет.</p>
+        <EmptyState art="ledger" title="Пока пусто" text="За выбранный период операций нет. Добавьте первую запись — вручную, фото чека или выпиской.">
           <button className="primary" onClick={() => setAddOpen(true)}>
+            <Icon name="plus" size={18} />
             Добавить операцию
           </button>
-        </div>
+        </EmptyState>
       )}
 
       {days.map((day) => (
@@ -349,24 +376,35 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
           </div>
 
           <ul className="list perf">
-            {day.rows.map((row) =>
-              row.kind === 'purchase' ? (
-                <li key={`p-${row.group.receiptId}`}>
-                  <button className="list-item is-purchase" onClick={() => onOpenPurchase(row.group.receiptId)}>
-                    <span className="list-main">
-                      <span className="list-title">{row.group.merchant ?? 'Покупка'}</span>
-                      <span className="muted small">
-                        {row.group.count} {plural(row.group.count, 'товар', 'товара', 'товаров')}
-                        {row.group.categoryName ? ` · ${row.group.categoryName}` : ''}
+            {day.rows.map((row) => {
+              if (row.kind === 'purchase') {
+                const visual = purchaseVisual(row.group.categoryName)
+
+                return (
+                  <li key={`p-${row.group.receiptId}`}>
+                    <button className="list-item is-purchase" onClick={() => onOpenPurchase(row.group.receiptId)}>
+                      <span className="list-badge" style={{ '--cat': visual.color } as CSSProperties} aria-hidden="true">
+                        <Icon name={visual.icon} size={18} />
                       </span>
-                    </span>
-                    <span className="list-right">
-                      <span className="amount expense">−{formatMoney(row.group.total, row.group.currency)}</span>
-                      <span className="muted small">Чек ›</span>
-                    </span>
-                  </button>
-                </li>
-              ) : (
+                      <span className="list-main">
+                        <span className="list-title">{row.group.merchant ?? 'Покупка'}</span>
+                        <span className="muted small">
+                          {row.group.count} {plural(row.group.count, 'товар', 'товара', 'товаров')}
+                          {row.group.categoryName ? ` · ${row.group.categoryName}` : ''}
+                        </span>
+                      </span>
+                      <span className="list-right">
+                        <span className="amount expense">−{formatMoney(row.group.total, row.group.currency)}</span>
+                        <span className="muted small">Чек ›</span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              }
+
+              const visual = transactionVisual(row.tx)
+
+              return (
                 <li key={row.tx.id}>
                   <button
                     className={`list-item ${
@@ -374,6 +412,9 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
                     }`}
                     onClick={() => onEdit(row.tx)}
                   >
+                    <span className="list-badge" style={{ '--cat': visual.color } as CSSProperties} aria-hidden="true">
+                      <Icon name={visual.icon} size={18} />
+                    </span>
                     <span className="list-main">
                       <span className="list-title">{row.tx.categoryName ?? 'Без категории'}</span>
                       <span className="muted small">
@@ -396,8 +437,8 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
                     </span>
                   </button>
                 </li>
-              ),
-            )}
+              )
+            })}
           </ul>
         </div>
       ))}
@@ -417,14 +458,7 @@ export default function OperationsScreen({ refreshKey, onEdit, onOpenPurchase, o
 
         <label className="field">
           <span>Категория</span>
-          <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-            <option value="">Все категории</option>
-            {categoryOptions.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+          <CategorySelect value={categoryId} onChange={setCategoryId} categories={categoryOptions} emptyLabel="Все категории" />
         </label>
 
         <div className="item-grid">

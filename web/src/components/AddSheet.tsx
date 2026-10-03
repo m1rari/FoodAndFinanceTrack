@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, CSSProperties } from 'react'
 import { api, ApiError } from '../api/client'
 import { haptic } from '../telegram/telegram'
 import { compressImage } from '../utils/image'
 import BottomSheet from './BottomSheet'
+import Icon from './Icon'
 
 interface Props {
   open: boolean
@@ -69,9 +70,9 @@ export default function AddSheet({ open, onClose, onManual, onReceipt, onStateme
 
   return (
     <BottomSheet open={open} title="Добавить" onClose={onClose}>
-      <button className="action-card" onClick={onManual}>
+      <button className="action-card" style={{ '--cat': 'var(--violet)' } as CSSProperties} onClick={onManual}>
         <span className="action-icon" aria-hidden="true">
-          ₽
+          <Icon name="pencil" size={20} />
         </span>
         <span className="action-text">
           <strong>Вручную</strong>
@@ -83,12 +84,14 @@ export default function AddSheet({ open, onClose, onManual, onReceipt, onStateme
       <input ref={galleryInput} type="file" accept="image/*" hidden onChange={handleReceipt} />
       <input ref={pdfInput} type="file" accept="application/pdf,.pdf" hidden onChange={handleStatement} />
 
-      <button className="action-card" disabled={uploading} onClick={() => cameraInput.current?.click()}>
+      <button
+        className="action-card"
+        style={{ '--cat': 'var(--brand)' } as CSSProperties}
+        disabled={uploading}
+        onClick={() => cameraInput.current?.click()}
+      >
         <span className="action-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <circle cx="12" cy="13" r="4" />
-          </svg>
+          <Icon name="camera" size={20} />
         </span>
         <span className="action-text">
           <strong>Сфотографировать чек</strong>
@@ -96,13 +99,14 @@ export default function AddSheet({ open, onClose, onManual, onReceipt, onStateme
         </span>
       </button>
 
-      <button className="action-card" disabled={uploading} onClick={() => galleryInput.current?.click()}>
+      <button
+        className="action-card"
+        style={{ '--cat': 'var(--cyan)' } as CSSProperties}
+        disabled={uploading}
+        onClick={() => galleryInput.current?.click()}
+      >
         <span className="action-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" />
-            <path d="M21 15l-5-5L5 21" />
-          </svg>
+          <Icon name="image" size={20} />
         </span>
         <span className="action-text">
           <strong>Чек из галереи</strong>
@@ -110,13 +114,14 @@ export default function AddSheet({ open, onClose, onManual, onReceipt, onStateme
         </span>
       </button>
 
-      <button className="action-card" disabled={uploading} onClick={() => pdfInput.current?.click()}>
+      <button
+        className="action-card"
+        style={{ '--cat': 'var(--gold)' } as CSSProperties}
+        disabled={uploading}
+        onClick={() => pdfInput.current?.click()}
+      >
         <span className="action-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-            <path d="M14 3v5h5" />
-            <path d="M9 13h6M9 17h4" />
-          </svg>
+          <Icon name="file" size={20} />
         </span>
         <span className="action-text">
           <strong>Выписка банка</strong>
@@ -125,12 +130,14 @@ export default function AddSheet({ open, onClose, onManual, onReceipt, onStateme
       </button>
 
       {uploading && (
-        <p className="muted" aria-live="polite">
+        <p className="muted loading-row" aria-live="polite">
+          <span className="spinner" aria-hidden="true" />
           Загрузка и распознавание…
         </p>
       )}
       {error && (
-        <p className="error" aria-live="polite">
+        <p className="error loading-row" aria-live="polite">
+          <Icon name="alert" size={16} strokeWidth={2.1} />
           {error}
         </p>
       )}

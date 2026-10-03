@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { api, ApiError } from '../api/client'
 import type { CategoryDto, StatementDto, StatementOperationDto, TransactionDto } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import CategorySelect from '../components/CategorySelect'
+import Confetti from '../components/Confetti'
+import Icon from '../components/Icon'
 import Skeleton from '../components/Skeleton'
+import { useCelebration } from '../hooks/useCelebration'
 import { haptic } from '../telegram/telegram'
 import { dayKey, formatDayLabel } from '../utils/date'
 import { formatDate, formatMoney, formatTime, plural } from '../utils/format'
+import { categoryVisual } from '../utils/visuals'
 
 interface Props {
   statementId: string
@@ -40,6 +46,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
   const [categoryId, setCategoryId] = useState('')
   const [isTransfer, setIsTransfer] = useState(false)
   const [linkId, setLinkId] = useState<string | null>(null)
+  const [celebration, celebrate] = useCelebration()
 
   useEffect(() => {
     let cancelled = false
@@ -197,6 +204,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
     try {
       await api.confirmStatement(statement.id, payload)
       haptic('success')
+      celebrate()
       onChanged()
       onBack()
     } catch (err: unknown) {
@@ -223,17 +231,25 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
 
   return (
     <section className="screen">
+      <Confetti trigger={celebration} />
+
       <header className="screen-header">
-        <button className="ghost back" onClick={onBack}>
-          ‹ Назад
+        <button className="ghost back" onClick={onBack} aria-label="Назад">
+          <Icon name="chevron-left" size={20} strokeWidth={2.2} />
         </button>
-        <h1>Выписка</h1>
+        <h1>
+          <span className="title-icon" style={{ '--cat': 'var(--cyan)' } as CSSProperties} aria-hidden="true">
+            <Icon name="file" size={18} />
+          </span>
+          Выписка
+        </h1>
         <span />
       </header>
 
       {loading && <Skeleton rows={4} />}
       {error && (
-        <p className="error" aria-live="polite">
+        <p className="error loading-row" aria-live="polite">
+          <Icon name="alert" size={16} strokeWidth={2.1} />
           {error}
         </p>
       )}
@@ -241,7 +257,11 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
       {statement && (
         <>
           <div className="status-row">
-            <p className="status">{confirmed ? 'Проведена' : STATUS_LABELS[statement.status] ?? statement.status}</p>
+            <p className={`status ${confirmed ? 'confirmed' : ''}`}>
+              {statement.status === 'Pending' && !confirmed && <span className="spinner" aria-hidden="true" />}
+              {confirmed && <Icon name="check" size={13} strokeWidth={2.4} />}
+              {confirmed ? 'Проведена' : STATUS_LABELS[statement.status] ?? statement.status}
+            </p>
             <p className="status">
               {operations.length} {plural(operations.length, 'операция', 'операции', 'операций')}
             </p>
@@ -251,7 +271,10 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
 
           {statement.duplicate && (
             <div className="match-card">
-              <p className="small">Эта выписка уже загружалась ранее.</p>
+              <p className="small">
+                <Icon name="info" size={15} strokeWidth={2.2} />
+                Эта выписка уже загружалась ранее.
+              </p>
               <p className="muted small">
                 Если она уже проведена — повторно проводить не нужно. Иначе продолжите проверку и проведение.
               </p>
@@ -259,10 +282,18 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
           )}
 
           {statement.status === 'Pending' && (
-            <p className="muted">Идёт разбор выписки — это может занять до минуты. Экран обновится сам.</p>
+            <p className="muted loading-row">
+              <span className="spinner" aria-hidden="true" />
+              Идёт разбор выписки — это может занять до минуты. Экран обновится сам.
+            </p>
           )}
 
-          {statement.status === 'Failed' && statement.error && <p className="error small">{statement.error}</p>}
+          {statement.status === 'Failed' && statement.error && (
+            <p className="error loading-row small">
+              <Icon name="alert" size={16} strokeWidth={2.1} />
+              {statement.error}
+            </p>
+          )}
 
           {dayKeys.map((key) => (
             <div className="day-group" key={key}>
@@ -271,13 +302,21 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
               </div>
 
               <ul className="list perf">
-                {grouped[key].map(({ operation, index }) => (
+                {grouped[key].map(({ operation, index }) => {
+                  const visual = operation.isTransfer
+                    ? { icon: 'swap' as const, color: '#f5b942' }
+                    : categoryVisual(operation.categoryName, operation.direction === 'income' ? 'Income' : 'Expense')
+
+                  return (
                     <li key={index}>
                       <button
                         className={`list-item ${operation.isTransfer ? 'is-neutral' : operation.direction === 'income' ? 'is-income' : 'is-expense'}`}
                         disabled={confirmed}
                         onClick={() => openEditor(index)}
                       >
+                        <span className="list-badge" style={{ '--cat': visual.color } as CSSProperties} aria-hidden="true">
+                          <Icon name={visual.icon} size={18} />
+                        </span>
                         <span className="list-main">
                           <span className="list-title">{operation.description ?? 'Операция'}</span>
                           <span className="muted small">
@@ -296,14 +335,18 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
                         </span>
                       </button>
                     </li>
-                ))}
+                  )
+                })}
               </ul>
             </div>
           ))}
 
           {!confirmed && operations.length > 0 && (
             <button className="primary" disabled={confirming} onClick={handleConfirm}>
-              {confirming ? 'Проведение…' : `Провести ${operations.length} ${plural(operations.length, 'операцию', 'операции', 'операций')}`}
+              <Icon name="check" size={18} strokeWidth={2.2} />
+              {confirming
+                ? 'Проведение…'
+                : `Провести ${operations.length} ${plural(operations.length, 'операцию', 'операции', 'операций')}`}
             </button>
           )}
         </>
@@ -316,6 +359,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
             className={direction === 'expense' ? 'segment active' : 'segment'}
             onClick={() => setDirection('expense')}
           >
+            <Icon name="arrow-down" size={16} strokeWidth={2.2} />
             Расход
           </button>
           <button
@@ -323,6 +367,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
             className={direction === 'income' ? 'segment active' : 'segment'}
             onClick={() => setDirection('income')}
           >
+            <Icon name="arrow-up" size={16} strokeWidth={2.2} />
             Доход
           </button>
         </div>
@@ -339,14 +384,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
 
         <label className="field">
           <span>Категория</span>
-          <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-            <option value="">Без категории</option>
-            {categoryOptions.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+          <CategorySelect value={categoryId} onChange={setCategoryId} categories={categoryOptions} />
         </label>
 
         <div className="segmented">
@@ -362,6 +400,7 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
             className={isTransfer ? 'segment active' : 'segment'}
             onClick={() => setIsTransfer(true)}
           >
+            <Icon name="swap" size={16} strokeWidth={2.2} />
             Перевод
           </button>
         </div>
@@ -403,9 +442,11 @@ export default function StatementReviewScreen({ statementId, onBack, onChanged }
 
         <div className="actions">
           <button type="button" className="danger" onClick={removeOperation}>
+            <Icon name="trash" size={18} />
             Убрать
           </button>
           <button type="button" className="primary" onClick={saveEditor}>
+            <Icon name="check" size={18} strokeWidth={2.2} />
             Сохранить
           </button>
         </div>

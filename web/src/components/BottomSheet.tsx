@@ -9,6 +9,10 @@ interface Props {
   children: ReactNode
 }
 
+/**
+ * Нижний лист. Монтируется постоянно, а показывается CSS-переходом:
+ * так закрытие анимируется без состояния и таймеров в компоненте.
+ */
 export default function BottomSheet({ open, title, onClose, children }: Props) {
   useBackButton(open, onClose)
 
@@ -28,16 +32,17 @@ export default function BottomSheet({ open, title, onClose, children }: Props) {
     return () => window.removeEventListener('keydown', handleKey)
   }, [open, onClose])
 
-  if (!open) {
-    return null
-  }
-
   return (
-    <div className="sheet-overlay" onClick={onClose}>
+    <div
+      className={open ? 'sheet-overlay is-open' : 'sheet-overlay'}
+      aria-hidden={!open}
+      inert={!open}
+      onClick={onClose}
+    >
       <div
         className="sheet"
-        role="dialog"
-        aria-modal="true"
+        role={open ? 'dialog' : undefined}
+        aria-modal={open ? true : undefined}
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
       >

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { api, ApiError, fetchFoodImage } from '../api/client'
 import type { FoodLogDto, UpdateFoodLogRequest } from '../api/types'
 import BottomSheet from '../components/BottomSheet'
+import Icon from '../components/Icon'
 import Skeleton from '../components/Skeleton'
 import { haptic, openTelegramLink } from '../telegram/telegram'
 import { formatDate, formatTime } from '../utils/format'
+import { MACRO_COLORS } from '../utils/visuals'
 
 interface Props {
   foodId: string
@@ -316,22 +318,32 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
     <section className="screen">
       <header className="screen-header">
         <button className="ghost back" onClick={onBack} aria-label="Назад">
-          ‹
+          <Icon name="chevron-left" size={20} strokeWidth={2.2} />
         </button>
-        <h1>{log?.dishName ?? 'Блюдо'}</h1>
+        <h1>
+          <span className="title-icon" aria-hidden="true">
+            <Icon name="utensils" size={18} />
+          </span>
+          {log?.dishName ?? 'Блюдо'}
+        </h1>
         <div className="header-actions">
-          <button className="icon-button" onClick={toggleFavorite} aria-label="В избранное">
-            {isFavorite ? '★' : '☆'}
+          <button
+            className={isFavorite ? 'icon-button is-favorite' : 'icon-button'}
+            onClick={toggleFavorite}
+            aria-label={isFavorite ? 'Убрать из избранного' : 'В избранное'}
+          >
+            <Icon name={isFavorite ? 'star-filled' : 'star'} size={20} />
           </button>
           <button className="icon-button" onClick={() => setMenuOpen(true)} aria-label="Ещё">
-            ⋯
+            <Icon name="more" size={20} />
           </button>
         </div>
       </header>
 
       {loading && <Skeleton rows={3} />}
       {error && (
-        <p className="error" aria-live="polite">
+        <p className="error loading-row" aria-live="polite">
+          <Icon name="alert" size={16} strokeWidth={2.1} />
           {error}
         </p>
       )}
@@ -339,8 +351,15 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
       {log && (
         <>
           <div className="status-row">
-            <p className="status">{STATUS_LABELS[log.status] ?? log.status}</p>
-            <p className="status">Оценка AI, может отличаться</p>
+            <p className={`status ${log.status === 'Processed' ? 'confirmed' : ''}`}>
+              {log.status === 'Pending' && <span className="spinner" aria-hidden="true" />}
+              {log.status === 'Failed' && <Icon name="alert" size={13} strokeWidth={2.2} />}
+              {STATUS_LABELS[log.status] ?? log.status}
+            </p>
+            <p className="status">
+              <Icon name="sparkles" size={13} strokeWidth={2.2} />
+              Оценка AI, может отличаться
+            </p>
           </div>
 
           {previewUrl && (
@@ -355,23 +374,37 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
             />
           )}
 
-          <div className="card">
-            <span className="muted small">Калории (оценка)</span>
-            <strong>{range(log.caloriesMin, log.caloriesMax)} ккал</strong>
-            {log.portionGrams != null && <span className="muted small">Порция ≈ {log.portionGrams} г</span>}
+          <div className="card day-summary">
+            <span className="list-badge macro-badge" style={{ '--cat': 'var(--warn)' } as CSSProperties} aria-hidden="true">
+              <Icon name="flame" size={22} />
+            </span>
+            <div className="macro-legend">
+              <span className="muted small">Калории (оценка)</span>
+              <strong className="stat-value">{range(log.caloriesMin, log.caloriesMax)} ккал</strong>
+              {log.portionGrams != null && <span className="muted small">Порция ≈ {log.portionGrams} г</span>}
+            </div>
           </div>
 
           <div className="macro-grid">
-            <div className="card">
-              <span className="muted small">Белки</span>
+            <div className="card macro-card" style={{ '--cat': MACRO_COLORS.protein } as CSSProperties}>
+              <span className="stat-label">
+                <Icon name="egg" size={13} strokeWidth={2.2} />
+                Белки
+              </span>
               <strong>{range(log.proteinMinG, log.proteinMaxG)} г</strong>
             </div>
-            <div className="card">
-              <span className="muted small">Жиры</span>
+            <div className="card macro-card" style={{ '--cat': MACRO_COLORS.fat } as CSSProperties}>
+              <span className="stat-label">
+                <Icon name="droplet" size={13} strokeWidth={2.2} />
+                Жиры
+              </span>
               <strong>{range(log.fatMinG, log.fatMaxG)} г</strong>
             </div>
-            <div className="card">
-              <span className="muted small">Углеводы</span>
+            <div className="card macro-card" style={{ '--cat': MACRO_COLORS.carbs } as CSSProperties}>
+              <span className="stat-label">
+                <Icon name="wheat" size={13} strokeWidth={2.2} />
+                Углеводы
+              </span>
               <strong>{range(log.carbsMinG, log.carbsMaxG)} г</strong>
             </div>
           </div>
@@ -384,24 +417,25 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
           )}
 
           <p className="muted small center">
-            {formatDate(log.eatenAt)} · {formatTime(log.eatenAt)}
+            <Icon name="calendar" size={13} strokeWidth={2.2} /> {formatDate(log.eatenAt)} · {formatTime(log.eatenAt)}
           </p>
 
           <button className="primary" onClick={openEditor}>
+            <Icon name="pencil" size={18} />
             Скорректировать
           </button>
         </>
       )}
 
       <BottomSheet open={menuOpen} title="Ещё" onClose={() => setMenuOpen(false)}>
-        <button className="action-card" disabled={sharing} onClick={handleShare}>
+        <button
+          className="action-card"
+          style={{ '--cat': 'var(--brand)' } as CSSProperties}
+          disabled={sharing}
+          onClick={handleShare}
+        >
           <span className="action-icon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="18" cy="5" r="3" />
-              <circle cx="6" cy="12" r="3" />
-              <circle cx="18" cy="19" r="3" />
-              <path d="M8.6 10.6l6.8-3.2M8.6 13.4l6.8 3.2" />
-            </svg>
+            <Icon name="share" size={20} />
           </span>
           <span className="action-text">
             <strong>{sharing ? 'Подготовка…' : 'Поделиться'}</strong>
@@ -409,11 +443,13 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
           </span>
         </button>
 
-        <button className="action-card" onClick={() => { setMenuOpen(false); setDeleteOpen(true) }}>
+        <button
+          className="action-card"
+          style={{ '--cat': 'var(--expense)' } as CSSProperties}
+          onClick={() => { setMenuOpen(false); setDeleteOpen(true) }}
+        >
           <span className="action-icon danger-icon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-            </svg>
+            <Icon name="trash" size={20} />
           </span>
           <span className="action-text">
             <strong>Удалить блюдо</strong>
@@ -501,6 +537,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
           </label>
 
           <button type="button" className="ghost" disabled={saving} onClick={handleReanalyze}>
+            <Icon name="refresh" size={18} />
             Распознать заново (с граммовкой и контекстом)
           </button>
 
@@ -509,6 +546,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
               Отмена
             </button>
             <button type="submit" className="primary" disabled={saving}>
+              <Icon name="check" size={18} strokeWidth={2.2} />
               {saving ? 'Сохранение…' : 'Сохранить'}
             </button>
           </div>
@@ -522,6 +560,7 @@ export default function FoodDetailScreen({ foodId, onBack, onChanged }: Props) {
             Отмена
           </button>
           <button type="button" className="danger" disabled={deleting} onClick={handleDelete}>
+            <Icon name="trash" size={18} />
             {deleting ? 'Удаление…' : 'Удалить'}
           </button>
         </div>
