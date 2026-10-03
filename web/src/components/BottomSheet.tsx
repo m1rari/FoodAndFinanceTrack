@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useBackButton } from '../hooks/useBackButton'
 
 interface Props {
@@ -32,7 +33,7 @@ export default function BottomSheet({ open, title, onClose, children }: Props) {
     return () => window.removeEventListener('keydown', handleKey)
   }, [open, onClose])
 
-  return (
+  return createPortal(
     <div
       className={open ? 'sheet-overlay is-open' : 'sheet-overlay'}
       aria-hidden={!open}
@@ -50,6 +51,7 @@ export default function BottomSheet({ open, title, onClose, children }: Props) {
         {title && <h2 className="sheet-title">{title}</h2>}
         <div className="sheet-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
