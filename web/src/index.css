@@ -452,6 +452,42 @@ p {
   max-width: 34ch;
 }
 
+.collapsible {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.collapsible-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r);
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.collapsible-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.collapsible-caret {
+  display: flex;
+  color: var(--ink-soft);
+  transition: transform 0.2s ease;
+}
+
+.collapsible-caret.is-open {
+  transform: rotate(180deg);
+}
+
 .notice {
   --tone: var(--brand);
   position: fixed;

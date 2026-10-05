@@ -57,6 +57,7 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [composeOpen, setComposeOpen] = useState(false)
   const [confirmDish, setConfirmDish] = useState<SavedDishDto | null>(null)
+  const [summaryOpen, setSummaryOpen] = useState(false)
   const [localRefresh, setLocalRefresh] = useState(0)
   const [pending, setPending] = useState<{ blob: Blob; fileName: string; previewUrl: string } | null>(null)
   const [context, setContext] = useState('')
@@ -266,48 +267,69 @@ export default function FoodScreen({ refreshKey, onOpen, onUploaded }: Props) {
         </button>
       </div>
 
-      {logs.length > 0 && (
-        <div className="card day-summary">
-          <MacroRing
-            calories={hasCalories ? String(Math.round((caloriesMin + caloriesMax) / 2)) : '—'}
-            protein={proteinMid}
-            fat={fatMid}
-            carbs={carbsMid}
-          />
-
-          <div className="macro-legend">
-            <span className="muted small">Калории за день (оценка AI)</span>
-            <span className="macro-row">
-              <span className="macro-dot" style={{ '--cat': MACRO_COLORS.protein } as CSSProperties} aria-hidden="true" />
-              Белки
-              <strong>{range(sum(logs.map((log) => log.proteinMinG)), sum(logs.map((log) => log.proteinMaxG)))} г</strong>
-            </span>
-            <span className="macro-row">
-              <span className="macro-dot" style={{ '--cat': MACRO_COLORS.fat } as CSSProperties} aria-hidden="true" />
-              Жиры
-              <strong>{range(sum(logs.map((log) => log.fatMinG)), sum(logs.map((log) => log.fatMaxG)))} г</strong>
-            </span>
-            <span className="macro-row">
-              <span className="macro-dot" style={{ '--cat': MACRO_COLORS.carbs } as CSSProperties} aria-hidden="true" />
-              Углеводы
-              <strong>{range(sum(logs.map((log) => log.carbsMinG)), sum(logs.map((log) => log.carbsMaxG)))} г</strong>
-            </span>
-          </div>
-        </div>
-      )}
-
       {isToday && quickDishes.length > 0 && (
         <>
           <h2 className="section-title">Быстро добавить</h2>
           <div className="chips-row">
             {quickDishes.map((dish) => (
-                <button key={dish.id} className="chip" onClick={() => openConfirm(dish)}>
+              <button key={dish.id} className="chip" onClick={() => openConfirm(dish)}>
                 <Icon name={dish.isFavorite ? 'star-filled' : 'plus'} size={14} strokeWidth={2.2} />
                 {dish.name}
               </button>
             ))}
           </div>
         </>
+      )}
+
+      {logs.length > 0 && (
+        <div className="collapsible">
+          <button
+            className="collapsible-head"
+            onClick={() => setSummaryOpen((value) => !value)}
+            aria-expanded={summaryOpen}
+          >
+            <span className="collapsible-title">
+              <Icon name="chart" size={16} />
+              Сводка за день
+              {!summaryOpen && hasCalories && (
+                <span className="muted small">· ~{Math.round((caloriesMin + caloriesMax) / 2)} ккал</span>
+              )}
+            </span>
+            <span className={summaryOpen ? 'collapsible-caret is-open' : 'collapsible-caret'} aria-hidden="true">
+              <Icon name="chevron-down" size={18} />
+            </span>
+          </button>
+
+          {summaryOpen && (
+            <div className="card day-summary">
+              <MacroRing
+                calories={hasCalories ? String(Math.round((caloriesMin + caloriesMax) / 2)) : '—'}
+                protein={proteinMid}
+                fat={fatMid}
+                carbs={carbsMid}
+              />
+
+              <div className="macro-legend">
+                <span className="muted small">Калории за день (оценка AI)</span>
+                <span className="macro-row">
+                  <span className="macro-dot" style={{ '--cat': MACRO_COLORS.protein } as CSSProperties} aria-hidden="true" />
+                  Белки
+                  <strong>{range(sum(logs.map((log) => log.proteinMinG)), sum(logs.map((log) => log.proteinMaxG)))} г</strong>
+                </span>
+                <span className="macro-row">
+                  <span className="macro-dot" style={{ '--cat': MACRO_COLORS.fat } as CSSProperties} aria-hidden="true" />
+                  Жиры
+                  <strong>{range(sum(logs.map((log) => log.fatMinG)), sum(logs.map((log) => log.fatMaxG)))} г</strong>
+                </span>
+                <span className="macro-row">
+                  <span className="macro-dot" style={{ '--cat': MACRO_COLORS.carbs } as CSSProperties} aria-hidden="true" />
+                  Углеводы
+                  <strong>{range(sum(logs.map((log) => log.carbsMinG)), sum(logs.map((log) => log.carbsMaxG)))} г</strong>
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {loading && <Skeleton rows={3} />}
